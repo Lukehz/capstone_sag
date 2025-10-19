@@ -1,11 +1,26 @@
 const sql = require('mssql');
-
+/*
 // Configuración de conexión
+// BASE DE DATOS DESARROLLO (Desabilitada)
+
 const config = {
     user: 'Luc_hernandez_SQLLogin_1',
     password: 'nus1f946z7',
     server: 'ProyectoCapstone.mssql.somee.com',
     database: 'ProyectoCapstone',
+    options: {
+        encrypt: true,
+        trustServerCertificate: true
+    }
+};
+*/
+// Configuración de conexión
+// BASE DE DATOS PRODUCTIVA (Consultar a lucas para su habilitacion)
+const config = {
+    user: 'luchernandez',
+    password: 'Capstone-sag',
+    server: 'capstone-sag.database.windows.net',
+    database: 'capstone-sag',
     options: {
         encrypt: true,
         trustServerCertificate: true
