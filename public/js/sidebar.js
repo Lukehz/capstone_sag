@@ -69,6 +69,8 @@ function llenarDropdownConParcelasAgrupadas(parcelas) {
 
       dropdown.appendChild(optgroup);
     });
+
+  if (window.enhanceSelect) window.enhanceSelect(dropdown);
 }
 
 // Función para generar el listado de parcelas agrupadas por comuna en un acordeón
@@ -182,20 +184,20 @@ async function mostrarRuta(destLat, destLng) {
 
       } catch (error) {
         console.error('Error al mostrar la ruta:', error);
-        alert('No se pudo calcular la ruta. Verifique su conexión o permisos de ubicación.');
+        window.notify('No se pudo calcular la ruta. Verifique su conexión o permisos de ubicación.');
         
         // Ocultar indicador de carga en caso de error
         if (loadingIndicator) loadingIndicator.style.display = 'none';
       }
     }, (error) => {
       console.error('Error al obtener la ubicación:', error);
-      alert('No se pudo obtener su ubicación actual. Verifique los permisos de ubicación.');
+      window.notify('No se pudo obtener su ubicación actual. Verifique los permisos de ubicación.');
       
       // Ocultar indicador de carga en caso de error
       if (loadingIndicator) loadingIndicator.style.display = 'none';
     });
   } else {
-    alert('La geolocalización no está soportada en este navegador.');
+    window.notify('La geolocalización no está soportada en este navegador.');
     
     // Ocultar indicador de carga
     if (loadingIndicator) loadingIndicator.style.display = 'none';
@@ -271,6 +273,8 @@ function llenarDropdownConCuarentenasAgrupadas(cuarentenas) {
 
     dropdownCuarentenas.appendChild(optgroup);
   });
+
+  if (window.enhanceSelect) window.enhanceSelect(dropdownCuarentenas);
 }
 
 // Función para generar el listado de cuarentenas por comentario
@@ -471,6 +475,8 @@ function llenarDropdownConCuarentenasInactivasAgrupadas(cuarentenas) {
 
     dropdownCuarentenasInactivas.appendChild(optgroup);
   });
+
+  if (window.enhanceSelect) window.enhanceSelect(dropdownCuarentenasInactivas);
 }
 
 // Función para generar el listado de cuarentenas inactivas por comentario

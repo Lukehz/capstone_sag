@@ -26,16 +26,28 @@ const updateParcelas = () => {
         const lat = parcela.latitud;
         const lng = parcela.longitud;
         if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-          const marker = new mapboxgl.Marker()
+          const _esReg = parcela.Registrada === 'Registrada';
+          const _el = document.createElement('div');
+          _el.className = 'parcela-marker ' + (_esReg ? 'is-ok' : 'is-warn');
+          _el.innerHTML = '<span class="parcela-marker__ring"></span><span class="parcela-marker__pin"><i class="fas fa-seedling"></i></span>';
+          const marker = new mapboxgl.Marker({ element: _el, anchor: 'bottom' })
           .setLngLat([parcela.longitud, parcela.latitud])
-          .setPopup(new mapboxgl.Popup().setHTML(`
-            <h3>Parcela ID: ${parcela.ID}</h3>
-            <p>Coordenadas: ${parcela.latitud}, ${parcela.longitud}</p>
-            <p>Fase: ${parcela.Fase}</p>
-            <p>Cultivo: ${parcela.Cultivo}</p>
-            <p>Comuna: ${parcela.Comuna}</p>
-            <p>Registrada: ${parcela.Registrada}</p>
-            <button id="delete-btn-${parcela.ID}" class="close-btn" >Eliminar</button>
+          .setPopup(new mapboxgl.Popup({ offset: 18, maxWidth: '260px' }).setHTML(`
+            <div class="lm-popup">
+              <div class="lm-popup__head">
+                <span class="lm-popup__title"><i class="fas fa-seedling"></i> Parcela #${parcela.ID}</span>
+                <span class="lm-popup__badge ${parcela.Registrada === 'Registrada' ? 'is-ok' : 'is-warn'}">${parcela.Registrada}</span>
+              </div>
+              <div class="lm-popup__body">
+                <div class="lm-popup__row"><span><i class="fas fa-layer-group"></i> Fase</span><b>${parcela.Fase}</b></div>
+                <div class="lm-popup__row"><span><i class="fas fa-leaf"></i> Cultivo</span><b>${parcela.Cultivo}</b></div>
+                <div class="lm-popup__row"><span><i class="fas fa-map-marker-alt"></i> Comuna</span><b>${parcela.Comuna}</b></div>
+                <div class="lm-popup__row"><span><i class="fas fa-location-arrow"></i> Coords</span><b>${Number(parcela.latitud).toFixed(5)}, ${Number(parcela.longitud).toFixed(5)}</b></div>
+              </div>
+              <div class="lm-popup__actions">
+                ${(window.Perm && window.Perm.tieneCapacidad('parcelacion.eliminar')) ? '<button id="delete-btn-'+parcela.ID+'" class="close-btn lm-popup__btn lm-popup__btn--danger"><i class="fas fa-trash"></i> Eliminar</button>' : ''}
+              </div>
+            </div>
           `))
           .addTo(map);
           
@@ -73,9 +85,14 @@ function toggleParcelas() {
 // Evento de carga de DOM
 document.addEventListener('DOMContentLoaded', () => {
   const parcelaCheckbox = document.getElementById('parcela-toggle');
-    // Checkbox esté desmarcado al cargar la página
-    parcelaCheckbox.checked = false;
+  // Activado por defecto al ingresar a la página
+  parcelaCheckbox.checked = true;
   parcelaCheckbox.addEventListener('change', toggleParcelas); // Agregar evento al checkbox
+  // Mostrar las parcelas apenas el mapa esté listo
+  if (parcelaCheckbox.checked) {
+    if (map.loaded()) updateParcelas();
+    else map.on('load', () => updateParcelas());
+  }
 });
 
 // Mapa para almacenar los marcadores por ID de parcela
@@ -90,7 +107,7 @@ function eliminarParcela(idParcela, boton) {
   })
     .then(response => {
       if (response.ok) {
-        alert("Parcela eliminada correctamente.");
+        window.notify("Parcela eliminada correctamente.");
         boton.parentElement.style.display = 'none'; // Oculta el recuadro del mapa
 
         updateParcelas(); 
@@ -108,7 +125,7 @@ function eliminarParcela(idParcela, boton) {
     })
     .catch(error => {
       console.error("Error al eliminar la parcela:", error.message); // Mostrar el error detallado
-      alert("No se pudo eliminar la parcela. Intenta nuevamente.");
+      window.notify("No se pudo eliminar la parcela. Intenta nuevamente.");
     });
 }
 
@@ -223,6 +240,8 @@ function populateSelect(selectId, options) {
       console.error(`ERROR: Problema al procesar la opción en index ${index} para "${selectId}":`, error.message);
     }
   });
+
+  if (window.enhanceSelect) window.enhanceSelect(selectElement);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -230,6 +249,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveButton = document.getElementById('save-parcelacion');
   const cancelButton = document.getElementById('cancel-parcelacion');
   const parcelacionForm = document.getElementById('parcelacion-form');
+
+  // Aplica el dropdown diseñado a los selects del modal y los refresca tras un reset
+  const refrescarSelectsModal = () => {
+    ['SelectComunaModal', 'SelectFase', 'SelectCultivo', 'Selectregistro'].forEach((id) => {
+      const s = document.getElementById(id);
+      if (s && window.enhanceSelect) window.enhanceSelect(s);
+    });
+  };
+  refrescarSelectsModal();
 
   // Evento para guardar la parcelación
   saveButton.addEventListener('click', async () => {
@@ -242,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Validar que todos los campos estén completos
     if (!latitud || !longitud || !id_sector || !id_fase || !id_cultivo || registrada === '') {
-      alert('Por favor, completa todos los campos antes de guardar.');
+      window.notify('Por favor, completa todos los campos antes de guardar.');
       return;
     }
 
@@ -259,20 +287,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const result = await response.json();
 
       if (result.success) {
-        alert('Parcelación guardada exitosamente.');
+        window.notify('Parcelación guardada exitosamente.');
         parcelacionForm.reset(); // Limpia el formulario después de guardar
+        refrescarSelectsModal();
       } else {
-        alert('Error al guardar la parcelación: ' + result.message);
+        window.notify('Error al guardar la parcelación: ' + result.message);
       }
     } catch (error) {
       console.error('Error al guardar la parcelación:', error);
-      alert('Ocurrió un error al guardar la parcelación. Intenta nuevamente.');
+      window.notify('Ocurrió un error al guardar la parcelación. Intenta nuevamente.');
     }
   });
 
   // Evento para cancelar la parcelación
   cancelButton.addEventListener('click', () => {
     parcelacionForm.reset(); // Limpia el formulario
+    refrescarSelectsModal();
 
     // Eliminar el marcador actual del mapa si existe
     if (currentMarker) {
@@ -281,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Mostrar mensaje de cancelación
-    alert('Parcelación cancelada.');
+    window.notify('Parcelación cancelada.');
 
     // Desactivar el modo de creación de parcela
     isCreatingParcela = false;

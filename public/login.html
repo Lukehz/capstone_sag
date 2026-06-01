@@ -3,56 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="login.css">
-    <link rel="stylesheet" href="/tailwind/output.css">
-    <link rel="stylesheet" href="/tailwind/Main_styles.css">
-    <script type="module" src="static/login.js"></script>
-    <script>
-        // Función para obtener el valor de un parámetro en la URL
-        function getURLParameter(name) {
-            return new URLSearchParams(window.location.search).get(name);
-        }
-
-        window.onload = function() {
-            // Si el parámetro 'alert' está en la URL, muestra la alerta
-            const alertMessage = getURLParameter('alert');
-            if (alertMessage === 'login-required') {
-                alert('Necesitas iniciar sesión para acceder.');
-            }
-        };
-    </script>
+    <link rel="icon" type="image/jpeg" href="/logo%20empresa.jpeg">
+    <link rel="apple-touch-icon" href="/logo%20empresa.jpeg">
+    <title>Iniciar sesión · LandMosaic</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+      :root{
+        --g-900:#14532d; --g-800:#166534; --g-700:#15803d; --g-600:#16a34a;
+        --g-100:#dcfce7; --ink:#0f1d14; --muted:#5b6b60; --line:#dfe7e1; --card:#ffffff;
+      }
+      *{box-sizing:border-box;}
+      body{
+        margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+        font-family:'DM Sans',system-ui,-apple-system,sans-serif; color:var(--ink); padding:24px;
+        background:linear-gradient(rgba(8,20,12,.58),rgba(8,20,12,.58)), url("/Fondo_login.jpg") center/cover no-repeat fixed;
+      }
+      .login-card{
+        width:100%; max-width:400px; background:rgba(255,255,255,.97);
+        border:1px solid rgba(255,255,255,.55); border-radius:20px;
+        box-shadow:0 24px 60px rgba(0,0,0,.38); padding:34px 30px; backdrop-filter:blur(6px);
+      }
+      .login-logo{
+        width:96px; height:96px; border-radius:50%; overflow:hidden; margin:0 auto 18px;
+        background:var(--g-800); display:grid; place-items:center; box-shadow:0 8px 22px rgba(20,83,45,.32);
+      }
+      .login-logo img{width:100%; height:100%; object-fit:cover;}
+      .login-card__head{text-align:center; margin-bottom:24px;}
+      .login-card__head h2{font-size:23px; font-weight:700; margin:0 0 6px;}
+      .login-card__head p{font-size:14px; color:var(--muted); margin:0;}
+      .field{margin-bottom:16px;}
+      .field label{display:block; font-size:13px; font-weight:600; color:var(--g-800); margin-bottom:7px;}
+      .field__control{display:flex; align-items:center; gap:9px; border:1px solid var(--line); background:#fff; border-radius:11px; padding:0 12px; transition:border-color .15s, box-shadow .15s;}
+      .field__control:focus-within{border-color:var(--g-600); box-shadow:0 0 0 3px var(--g-100);}
+      .field__control > i{color:#94a59a; font-size:14px;}
+      .field__control input{flex:1; border:0; outline:0; background:transparent; font:inherit; font-size:15px; padding:12px 0; color:var(--ink);}
+      .field__toggle{border:0; background:transparent; color:#94a59a; cursor:pointer; font-size:14px; padding:6px;}
+      .field__toggle:hover{color:var(--g-700);}
+      .login-btn{width:100%; margin-top:6px; border:0; border-radius:11px; padding:13px; font:inherit; font-size:15px; font-weight:600; color:#fff; background:var(--g-700); cursor:pointer; transition:background .15s, transform .05s; box-shadow:0 8px 18px rgba(22,101,52,.28);}
+      .login-btn:hover{background:var(--g-800);}
+      .login-btn:active{transform:translateY(1px);}
+      .login-error{color:#dc2626; font-size:13.5px; text-align:center; margin:14px 0 0;}
+      .login-error:empty{display:none;}
+      .login-notice{display:flex; align-items:center; gap:9px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:11px; padding:11px 13px; font-size:13.5px; margin-bottom:18px;}
+      .login-notice[hidden]{display:none;}
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-md bg-white rounded-lg shadow-md overflow-hidden">
-      <div class="p-6">
-          <div class="flex justify-center mb-6">
-              <div class="w-24 h-24 rounded-full overflow-hidden bg-green-800 flex items-center justify-center">
-                  <!-- Reemplaza la URL con la de tu logo -->
-                  <img src="./logo empresa.jpeg" alt="Logo de la empresa" class="w-full h-full object-cover">
-              </div>
-          </div>
-          <form form id="loginForm" action="/api/auth/login" method="POST" class="space-y-4">
-              <div class="space-y-2">
-                  <label for="username" class="block text-sm font-medium text-green-800">Usuario</label>
-                  <input type="text" id="username" name="username" required
-                         class="w-full px-3 py-2 border border-green-800 rounded-md focus:outline-none focus:ring-2 focus:ring-green-800"
-                         placeholder="Ingrese su usuario">
-              </div>
-              <div class="space-y-2">
-                  <label for="password" class="block text-sm font-medium text-green-800">Contraseña</label>
-                  <input type="password" id="password" name="password" required
-                         class="w-full px-3 py-2 border border-green-800 rounded-md focus:outline-none focus:ring-2 focus:ring-green-800"
-                         placeholder="Ingrese su contraseña">
-              </div>
-              <button type="submit"
-                      class="w-full bg-green-800 text-white py-2 px-4 rounded-md hover:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-800 focus:ring-opacity-50" value="Iniciar sesión">
-                  Iniciar sesión
-              </button>
-          </form>
-          <p id="mensajeError"></p>
+<body>
+  <div class="login-card">
+    <div class="login-logo"><img src="/logo empresa.jpeg" alt="Logo de la empresa"></div>
+    <div class="login-card__head">
+      <h2>Bienvenido</h2>
+      <p>Ingresa tus credenciales para continuar</p>
+    </div>
+
+    <div id="login-notice" class="login-notice" hidden></div>
+
+    <form id="loginForm" action="/api/auth/login" method="POST" class="login-form">
+      <div class="field">
+        <label for="username">Usuario</label>
+        <div class="field__control">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username" name="username" required placeholder="Ingrese su usuario" autocomplete="username">
+        </div>
       </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <div class="field__control">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" name="password" required placeholder="Ingrese su contraseña" autocomplete="current-password">
+          <button type="button" class="field__toggle" id="togglePass" aria-label="Mostrar contraseña"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
+      <button type="submit" class="login-btn">Iniciar sesión</button>
+      <p id="mensajeError" class="login-error"></p>
+    </form>
   </div>
+
+  <script>
+    (function () {
+      var tg = document.getElementById('togglePass'), pw = document.getElementById('password');
+      if (tg && pw) {
+        tg.addEventListener('click', function () {
+          var ver = pw.type === 'password';
+          pw.type = ver ? 'text' : 'password';
+          tg.innerHTML = ver ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
+        });
+      }
+      var alertKey = new URLSearchParams(window.location.search).get('alert');
+      if (alertKey === 'login-required') {
+        var n = document.getElementById('login-notice');
+        n.innerHTML = '<i class="fas fa-circle-info"></i><span>Debes iniciar sesión para continuar.</span>';
+        n.hidden = false;
+      }
+    })();
+  </script>
     <script>
   function _0x3926(){const _0x555921=['14jUkCwJ','579208aWCbVH','value','Script\x20de\x20login\x20cargado','innerText','addEventListener','submit','redirect','error','mensajeError','10jDynVE','preventDefault','5gACRKV','application/json','Ocurrió\x20un\x20error\x20al\x20iniciar\x20sesión.','Error:','2150RDTNTL','getElementById','username','loginForm','120859UOCzYe','then','log','343964qjhuQr','1501621AlcQrT','/api/auth/login','message','3411HTsqdU','94293wKEoPQ','604830rsQpMf','stringify','password','POST'];_0x3926=function(){return _0x555921;};return _0x3926();}function _0x35f4(_0x9f0d41,_0x4ceaa8){const _0x3926c4=_0x3926();return _0x35f4=function(_0x35f434,_0x530b88){_0x35f434=_0x35f434-0x1d2;let _0x159da2=_0x3926c4[_0x35f434];return _0x159da2;},_0x35f4(_0x9f0d41,_0x4ceaa8);}const _0x22375e=_0x35f4;(function(_0x92ad4b,_0x50e695){const _0x403601=_0x35f4,_0x35d95b=_0x92ad4b();while(!![]){try{const _0x10978d=parseInt(_0x403601(0x1d8))/0x1+parseInt(_0x403601(0x1ef))/0x2*(parseInt(_0x403601(0x1e0))/0x3)+parseInt(_0x403601(0x1db))/0x4*(-parseInt(_0x403601(0x1f1))/0x5)+-parseInt(_0x403601(0x1e1))/0x6*(-parseInt(_0x403601(0x1e5))/0x7)+-parseInt(_0x403601(0x1e6))/0x8+-parseInt(_0x403601(0x1df))/0x9*(parseInt(_0x403601(0x1d4))/0xa)+-parseInt(_0x403601(0x1dc))/0xb;if(_0x10978d===_0x50e695)break;else _0x35d95b['push'](_0x35d95b['shift']());}catch(_0x2b78e0){_0x35d95b['push'](_0x35d95b['shift']());}}}(_0x3926,0x19344),document[_0x22375e(0x1ea)]('DOMContentLoaded',()=>{const _0x373c62=_0x22375e;console[_0x373c62(0x1da)](_0x373c62(0x1e8)),document[_0x373c62(0x1d5)](_0x373c62(0x1d7))[_0x373c62(0x1ea)](_0x373c62(0x1eb),function(_0x1c8e7d){const _0x2efc90=_0x373c62;_0x1c8e7d[_0x2efc90(0x1f0)]();const _0x2ee7d3=document[_0x2efc90(0x1d5)](_0x2efc90(0x1d6))[_0x2efc90(0x1e7)],_0x141bbc=document[_0x2efc90(0x1d5)](_0x2efc90(0x1e3))[_0x2efc90(0x1e7)];fetch(_0x2efc90(0x1dd),{'method':_0x2efc90(0x1e4),'headers':{'Content-Type':_0x2efc90(0x1f2)},'body':JSON[_0x2efc90(0x1e2)]({'username':_0x2ee7d3,'password':_0x141bbc})})[_0x2efc90(0x1d9)](_0x2a0386=>_0x2a0386['json']())[_0x2efc90(0x1d9)](_0x292118=>{const _0x500eda=_0x2efc90;_0x292118[_0x500eda(0x1de)]==='Sesión\x20iniciada\x20correctamente'?window['location']['href']=_0x292118[_0x500eda(0x1ec)]:document[_0x500eda(0x1d5)](_0x500eda(0x1ee))[_0x500eda(0x1e9)]=_0x292118['message'];})['catch'](_0x1a9498=>{const _0x27b41f=_0x2efc90;console[_0x27b41f(0x1ed)](_0x27b41f(0x1d3),_0x1a9498),document[_0x27b41f(0x1d5)](_0x27b41f(0x1ee))[_0x27b41f(0x1e9)]=_0x27b41f(0x1d2);});});}));
     </script>

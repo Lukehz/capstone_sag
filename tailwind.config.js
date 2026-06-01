@@ -1,20 +1,16 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [    
-    './public/**.html',
-    './public/**/*.js',
+  content: [
     './public/**/*.html',
-    './src/**/*.ejs',
-    './src/*.ejs',
-
- ],
+    './public/**/*.js',
+    './server/views/**/*.ejs',
+  ],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"DM Sans"', 'sans-serif'], // Incluye "DM Sans" como fuente principal
+        sans: ['"DM Sans"', 'sans-serif'],
       },
     },
   },
   plugins: [],
 }
-

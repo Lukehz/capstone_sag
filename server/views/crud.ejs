@@ -1,0 +1,59 @@
+<!-- ===================== Página CRUD ===================== -->
+<div class="crud-page">
+
+  <header class="crud-header">
+    <h1 id="crud-title"><%= title %></h1>
+    <div class="crud-header__actions">
+      <button id="filterButton" type="button" class="crud-btn-filter">
+        <i class="fas fa-filter"></i> Aplicar filtro
+      </button>
+      <button id="addButton" type="button" class="crud-btn-add"></button>
+    </div>
+  </header>
+
+  <div id="filters" class="crud-filters"></div>
+
+  <div class="crud-body">
+    <div class="crud-table-wrap">
+      <table id="itemsTable">
+        <thead><tr id="tableHeaders"></tr></thead>
+        <tbody id="itemList"></tbody>
+      </table>
+      <div id="crud-empty" class="crud-empty" style="display:none;">
+        <i class="fas fa-inbox"></i>
+        <p>No hay registros para mostrar.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="crud-footer">Gestión de Parcelaciones © 2024</footer>
+</div>
+
+<!-- Modal: ver imagen -->
+<div id="imageModal" class="crud-modal">
+  <div class="modal-container modal-container--img">
+    <div class="modal-head">
+      <button class="modal-close" onclick="closeModalImg()" aria-label="Cerrar">&times;</button>
+    </div>
+    <img id="modalImage" alt="Imagen de la parcelación" />
+  </div>
+</div>
+
+<!-- Modal: agregar / editar -->
+<div id="myModal" class="crud-modal">
+  <div class="modal-container">
+    <div class="modal-head">
+      <p id="modalTitle" class="modal-title">Agregar Item</p>
+      <button class="modal-close" onclick="closeModal()" aria-label="Cerrar">&times;</button>
+    </div>
+    <form id="itemForm">
+      <input type="hidden" id="itemId">
+      <div id="formFields"></div>
+      <button type="submit" id="submitButton">Agregar Item</button>
+    </form>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="/js/script.js"></script>
+<script src="/js/multiselect.js"></script>

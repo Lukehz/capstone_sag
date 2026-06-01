@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="<%= (typeof usuario !== 'undefined' && usuario && usuario.tema) ? usuario.tema : 'light' %>" data-permisos="<%= JSON.stringify(permisos || { rol: null, apartados: {}, capacidades: [] }) %>">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="/logo%20empresa.jpeg">
+    <link rel="apple-touch-icon" href="/logo%20empresa.jpeg">
+    <title><%= (typeof title !== 'undefined' && title) ? (title + ' · LandMosaic') : 'LandMosaic Vision' %></title>
+    <!-- Tailwind (utilidades) para el resto de las vistas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <!-- Mapbox -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.css">
+    <!-- Fuente DM Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    <!-- Iconos -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"/>
+    <!-- Sistema de diseño propio -->
+    <link rel="stylesheet" href="/styles/app.css">
+    <style>[x-cloak]{display:none !important;}</style>
+    <script>
+        // Permisos del usuario para el JS del cliente (se leen del atributo data-permisos en la etiqueta raiz)
+        (function () {
+            var fallback = { rol: null, apartados: {}, capacidades: [] };
+            var raw = document.documentElement.getAttribute('data-permisos');
+            try {
+                window.PERMISOS = raw ? JSON.parse(raw) : fallback;
+            } catch (e) {
+                window.PERMISOS = fallback;
+            }
+            window.Perm = {
+                nivel: function (ap) { return (window.PERMISOS.apartados && window.PERMISOS.apartados[ap]) || 'N'; },
+                puedeVer: function (ap) { var n = window.Perm.nivel(ap); return n === 'L' || n === 'A'; },
+                puedeAccionar: function (ap) { return window.Perm.nivel(ap) === 'A'; },
+                tieneCapacidad: function (cap) { return (window.PERMISOS.capacidades || []).indexOf(cap) !== -1; }
+            };
+        })();
+    </script>
+</head>
+<body class="flex h-screen overflow-hidden" x-data="{ open: false, infoOpen: false }">
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css" type="text/css">
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar" :class="{ 'open': open }">
+        <a href="/index" class="brand">
+            <span class="brand__mark"><i class="fas fa-leaf"></i></span>
+            <span class="brand__name">LandMosaic <small>Vision</small></span>
+        </a>
+
+        <nav class="nav">
+            <a href="/index" class="nav-item <%= (typeof title !== 'undefined' && title === 'Mapa de Cuarentenas') ? 'is-active' : '' %>">
+                <i class="fas fa-map-marked-alt"></i> Inicio
+            </a>
+
+            <% if (puedeVer('parcelaciones') || puedeVer('cuarentenas') || puedeVer('datos_maestros') || puedeVer('usuarios') || puedeVer('roles') || puedeVer('bitacora')) { %>
+                <div class="nav-group" @click.away="infoOpen = false">
+                    <button type="button" class="nav-item w-full" style="justify-content:space-between;" @click="infoOpen = !infoOpen">
+                        <span><i class="fas fa-folder-open"></i> Informaciones</span>
+                        <i class="fas fa-chevron-down" :class="{'rotate-180': infoOpen}" style="font-size:11px; transition:transform .2s;"></i>
+                    </button>
+                    <div x-show="infoOpen" x-cloak class="nav-submenu">
+                        <% if (puedeVer('datos_maestros')) { %>
+                        <a href="/crud?table=sector"      class="nav-sublink">Sector</a>
+                        <% } %>
+                        <% if (puedeVer('cuarentenas')) { %>
+                        <a href="/crud?table=cuarentena"  class="nav-sublink">Cuarentena</a>
+                        <% } %>
+                        <% if (puedeVer('datos_maestros')) { %>
+                        <a href="/crud?table=cultivo"     class="nav-sublink">Cultivo</a>
+                        <a href="/crud?table=fase"        class="nav-sublink">Fase</a>
+                        <% } %>
+                        <% if (puedeVer('parcelaciones')) { %>
+                        <a href="/crud?table=parcelacion" class="nav-sublink">Parcelación</a>
+                        <% } %>
+                        <% if (puedeVer('usuarios')) { %>
+                        <a href="/crud?table=usuario"     class="nav-sublink">Usuario</a>
+                        <% } %>
+                        <% if (puedeVer('roles')) { %>
+                        <a href="/roles"                  class="nav-sublink">Roles</a>
+                        <% } %>
+                        <% if (puedeVer('bitacora')) { %>
+                        <a href="/bitacora"               class="nav-sublink">Bitácora de accesos</a>
+                        <% } %>
+                    </div>
+                </div>
+            <% } %>
+            <% if (puedeVer('dashboard')) { %>
+                <a href="/dashboard"  class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <% } %>
+            <% if (puedeVer('prediccion')) { %>
+                <a href="/prediccion" class="nav-item"><i class="fas fa-image"></i> Predicción de Imágenes</a>
+            <% } %>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-chip">
+                <span class="user-chip__avatar"><%= ((usuario && (usuario.nombre || usuario.username)) || 'U').substring(0,2) %></span>
+                <span class="user-chip__meta">
+                    <span class="user-chip__name"><%= (usuario && (usuario.nombre || usuario.username)) || 'Usuario' %></span>
+                    <span class="user-chip__role"><%= (usuario && (usuario.role || usuario.rol)) || '' %></span>
+                </span>
+            </div>
+            <a href="/perfil" class="footer-link footer-link--profile"><i class="fas fa-user"></i> Perfil</a>
+            <button type="button" id="theme-toggle" class="theme-toggle">
+                <i class="fas fa-moon"></i>
+                <span class="label-light">Tema oscuro</span>
+                <span class="label-dark">Tema claro</span>
+            </button>
+            <a href="/api/auth/logout" id="logout" class="footer-link footer-link--logout"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main id="content-container" class="flex-1 h-full overflow-y-auto">
+        <div class="flex h-screen">
+            <%- body %>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@2.8.2/dist/alpine.min.js" defer></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
+    <script type="module" src="js/filter.js"></script>
+    <script>
+        const logoutLink = document.getElementById('logout');
+        if (logoutLink) {
+            logoutLink.addEventListener('click', async function (event) {
+                event.preventDefault();
+                try {
+                    const response = await fetch('/api/auth/logout', { method: 'GET' });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Error al cerrar sesión');
+                    }
+                    window.location.href = '/login';
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('No se pudo cerrar la sesión. Intenta nuevamente.');
+                }
+            });
+        }
+    </script>
+    <script>
+        if (typeof map !== 'undefined') {
+            map.addControl(new MapboxDirections({ accessToken: mapboxgl.accessToken }), 'top-left');
+        }
+    </script>
+    <script>
+        (function () {
+            const btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            const root = document.documentElement;
+            const icon = btn.querySelector('i');
+
+            function syncIcon() {
+                const dark = root.getAttribute('data-theme') === 'dark';
+                if (icon) icon.className = dark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            syncIcon();
+
+            btn.addEventListener('click', async function () {
+                const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                syncIcon();
+                try {
+                    await fetch('/api/usuario/tema', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tema: next })
+                    });
+                } catch (e) {
+                    console.error('No se pudo guardar la preferencia de tema:', e);
+                }
+            });
+        })();
+    </script>
+    <!-- Aviso (toast) y modal de confirmación propios de la app -->
+    <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+    <div id="app-confirm" class="app-confirm" aria-hidden="true">
+        <div class="app-confirm__backdrop" data-cancel></div>
+        <div class="app-confirm__box" role="dialog" aria-modal="true">
+            <div class="app-confirm__icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <p class="app-confirm__msg"></p>
+            <div class="app-confirm__actions">
+                <button type="button" class="app-confirm__btn app-confirm__btn--ghost" data-cancel></button>
+                <button type="button" class="app-confirm__btn app-confirm__btn--primary" data-ok></button>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            // ---- Aviso tipo toast: window.notify(mensaje, tipo, icono?) ----
+            function detectar(msg) {
+                var s = String(msg).toLowerCase();
+                if (/error|no se|inv[aá]lid|hubo|fall|denegad|obligat|debe/.test(s)) return 'error';
+                if (/[eé]xito|correct|eliminad|actualizad|cread|guardad|desactivad|activad/.test(s)) return 'success';
+                return 'info';
+            }
+            window.notify = function (message, tipo, icono) {
+                var t = document.getElementById('app-toast');
+                if (!t) return;
+                tipo = tipo || detectar(message);
+                var icon = icono || (tipo === 'success' ? 'fa-check'
+                    : tipo === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle');
+                t.className = 'app-toast app-toast--' + tipo;
+                t.innerHTML = '<span class="app-toast__icon"><i class="fas ' + icon + '"></i></span><span class="app-toast__msg"></span>';
+                t.querySelector('.app-toast__msg').textContent = String(message);
+                t.classList.add('is-visible');
+                clearTimeout(t._timer);
+                t._timer = setTimeout(function () { t.classList.remove('is-visible'); }, 3800);
+            };
+
+            // ---- Confirmación: window.confirmar(mensaje, opts) -> Promise<bool> ----
+            window.confirmar = function (message, opts) {
+                opts = opts || {};
+                return new Promise(function (resolve) {
+                    var m = document.getElementById('app-confirm');
+                    if (!m) { resolve(window.confirm(message)); return; }
+                    m.querySelector('.app-confirm__msg').textContent = String(message);
+                    var okBtn = m.querySelector('[data-ok]');
+                    var caBtn = m.querySelector('.app-confirm__btn--ghost');
+                    okBtn.textContent = opts.okText || 'Confirmar';
+                    caBtn.textContent = opts.cancelText || 'Cancelar';
+                    m.classList.toggle('is-danger', opts.danger !== false);
+                    m.querySelector('.app-confirm__icon').innerHTML =
+                        '<i class="fas ' + (opts.icon || 'fa-exclamation-triangle') + '"></i>';
+                    function cerrar(val) {
+                        m.classList.remove('is-visible');
+                        okBtn.removeEventListener('click', onOk);
+                        m.querySelectorAll('[data-cancel]').forEach(function (b) { b.removeEventListener('click', onCancel); });
+                        document.removeEventListener('keydown', onKey);
+                        resolve(val);
+                    }
+                    function onOk() { cerrar(true); }
+                    function onCancel() { cerrar(false); }
+                    function onKey(e) { if (e.key === 'Escape') onCancel(); else if (e.key === 'Enter') onOk(); }
+                    okBtn.addEventListener('click', onOk);
+                    m.querySelectorAll('[data-cancel]').forEach(function (b) { b.addEventListener('click', onCancel); });
+                    document.addEventListener('keydown', onKey);
+                    m.classList.add('is-visible');
+                    setTimeout(function () { okBtn.focus(); }, 30);
+                });
+            };
+
+            // ---- Avisos por querystring (?alert=...) usando el toast propio ----
+            var params = new URLSearchParams(window.location.search);
+            var alertKey = params.get('alert');
+            var mensajes = {
+                'sin-permiso': 'No tienes permiso para acceder a esa sección.',
+                'login-required': 'Debes iniciar sesión para continuar.'
+            };
+            if (alertKey && mensajes[alertKey]) {
+                window.notify(mensajes[alertKey], 'error', 'fa-lock');
+                params.delete('alert');
+                var nueva = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+                window.history.replaceState({}, '', nueva);
+            }
+        })();
+    </script>
+</body>
+</html>

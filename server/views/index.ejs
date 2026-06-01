@@ -1,0 +1,259 @@
+<!-- ===================== Página del mapa ===================== -->
+<div class="map-page">
+
+  <!-- Mapa -->
+  <div id="map"></div>
+
+  <!-- Estado de cálculo de ruta -->
+  <div id="loading-route" style="display:none;">Calculando ruta…</div>
+
+  <!-- Acciones (según permisos) -->
+  <% if (puedeAccionar('parcelaciones') || tieneCapacidad('cuarentena.activar_desactivar')) { %>
+    <div id="action-buttons" class="map-overlay map-actions">
+      <% if (tieneCapacidad('cuarentena.activar_desactivar')) { %>
+      <button id="create-quarantine-button" class="btn btn-danger btn-sm">
+        <i class="fas fa-draw-polygon"></i> Crear Cuarentena
+      </button>
+      <% } %>
+      <% if (puedeAccionar('parcelaciones')) { %>
+      <button id="create-parcela" class="btn btn-primary btn-sm">
+        <i class="fas fa-seedling"></i> Crear Parcelación
+      </button>
+      <% } %>
+    </div>
+  <% } %>
+
+  <!-- Toolbar: buscador + filtro -->
+  <div class="map-overlay map-toolbar">
+    <div id="map-search"></div>
+    <button id="filter-button" class="icon-btn" aria-label="Abrir filtros">
+      <i class="fas fa-sliders-h"></i>
+    </button>
+  </div>
+
+  <!-- Panel de Filtros -->
+  <div id="filter-panel" class="map-overlay panel panel--filters hidden">
+    <div class="panel__head">
+      <span class="panel__title"><i class="fas fa-sliders-h"></i>Filtros</span>
+    </div>
+
+    <div class="section-label">Capas del mapa</div>
+    <div id="controls">
+      <label class="switch-row">
+        <span>Trazado de cuarentena</span>
+        <span class="switch"><input type="checkbox" id="quarantine-toggle" checked><span class="slider"></span></span>
+      </label>
+      <label class="switch-row">
+        <span>Círculo de cuarentena</span>
+        <span class="switch"><input type="checkbox" id="quarantine-circle-toggle" checked><span class="slider"></span></span>
+      </label>
+      <label class="switch-row">
+        <span>Cuarentenas inactivas</span>
+        <span class="switch"><input type="checkbox" id="quarantine-inactive"><span class="slider"></span></span>
+      </label>
+      <label class="switch-row">
+        <span>Parcelas</span>
+        <span class="switch"><input type="checkbox" id="parcela-toggle" checked><span class="slider"></span></span>
+      </label>
+    </div>
+
+    <div class="section-label">Ir a</div>
+
+    <div class="field">
+      <label for="parcelas-dropdown">Parcela</label>
+      <select id="parcelas-dropdown" class="input">
+        <option value="">Seleccione una parcela</option>
+      </select>
+      <div class="field-actions">
+        <button type="button" id="cancel-directions" class="link-cancel">Cancelar ruta</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="cuarentenas-dropdown">Cuarentena</label>
+      <select id="cuarentenas-dropdown" class="input">
+        <option value="">Seleccione una cuarentena</option>
+      </select>
+      <div class="field-actions">
+        <button type="button" id="cancel-cuarentenas" class="link-cancel">Cancelar</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="cuarentenas-inactivas-dropdown">Cuarentena inactiva</label>
+      <select id="cuarentenas-inactivas-dropdown" class="input">
+        <option value="">Seleccione una cuarentena inactiva</option>
+      </select>
+      <div class="field-actions">
+        <button type="button" id="cancel-inactivas" class="link-cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Crear Cuarentena -->
+  <div id="quarantine-panel" class="map-overlay panel panel--quarantine hidden">
+    <div class="panel__head">
+      <span class="panel__title"><i class="fas fa-draw-polygon"></i>Crear Cuarentena</span>
+      <button type="button" id="trazado-tutorial-btn" class="tutorial-btn"><i class="fas fa-circle-question"></i> Tutorial</button>
+    </div>
+    <div class="field">
+      <label for="quarantine-type">Modo de dibujo</label>
+      <select id="quarantine-type" class="input">
+        <option value="seleccionar">Seleccionar modo dibujo</option>
+        <option value="trazado">Por Trazado</option>
+        <option value="radio">Por Radio</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="SelectComuna">Sector</label>
+      <select id="SelectComuna" class="input">
+        <option value="">Seleccionar</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="quarantine-comment">Comentario</label>
+      <textarea id="quarantine-comment" class="input" rows="2" placeholder="Escriba un comentario"></textarea>
+    </div>
+    <div class="field hidden" id="radius-field">
+      <label for="quarantine-radius">Radio (metros)</label>
+      <input type="number" id="quarantine-radius" class="input" placeholder="Ej: 1000" min="1" value="1000">
+    </div>
+    <div class="modal-actions">
+      <button id="cancel-quarantine" class="btn btn-ghost btn-sm">Cancelar</button>
+      <button id="save-quarantine" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Guardar</button>
+    </div>
+
+    <div id="trazado-helper" class="trazado-helper hidden">
+      <span class="trazado-helper__hint" id="trazado-hint"><i class="fas fa-hand-pointer"></i> Haz clic en el mapa para agregar puntos (mínimo 3).</span>
+      <span class="trazado-helper__count" id="trazado-count">Puntos: 0</span>
+      <div class="trazado-helper__actions">
+        <button type="button" id="trazado-close" class="btn btn-primary btn-sm trazado-helper__close"><i class="fas fa-check"></i> Cerrar trazado</button>
+        <div class="trazado-helper__row2">
+          <button type="button" id="trazado-undo" class="btn btn-ghost btn-sm"><i class="fas fa-undo"></i> Deshacer</button>
+          <button type="button" id="trazado-clear" class="btn btn-ghost btn-sm"><i class="fas fa-trash"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Tutorial de trazado -->
+  <div id="trazado-tutorial" class="tutorial-overlay hidden">
+    <div class="tutorial-modal" role="dialog" aria-modal="true" aria-label="Cómo trazar una cuarentena">
+      <div class="tutorial-modal__head">
+        <span class="tutorial-modal__title"><i class="fas fa-draw-polygon"></i> Cómo trazar una cuarentena</span>
+        <button type="button" id="trazado-tutorial-close" class="tutorial-modal__close" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="tutorial-grid">
+        <div class="tutorial-card tutorial-card--ok">
+          <span class="tutorial-card__badge"><i class="fas fa-check"></i> Forma correcta</span>
+          <div class="tutorial-anim">
+            <svg viewBox="0 0 260 150" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <polygon points="60,32 182,42 212,100 128,126 46,96" fill="#E0633A" fill-opacity="0.18"/>
+              <polygon points="60,32 182,42 212,100 128,126 46,96" fill="none" stroke="#E0633A" stroke-width="3" stroke-dasharray="8 8" style="animation:tut-ants .6s linear infinite;"/>
+              <circle cx="182" cy="42" r="5.5" fill="#fff" stroke="#D85A30" stroke-width="3"/>
+              <circle cx="212" cy="100" r="5.5" fill="#fff" stroke="#D85A30" stroke-width="3"/>
+              <circle cx="128" cy="126" r="5.5" fill="#fff" stroke="#D85A30" stroke-width="3"/>
+              <circle cx="46" cy="96" r="5.5" fill="#fff" stroke="#D85A30" stroke-width="3"/>
+              <circle cx="60" cy="32" r="10" fill="#D85A30" opacity="0.5" style="transform-origin:60px 32px; animation:tut-pulse 1.6s ease-out infinite;"/>
+              <circle cx="60" cy="32" r="7" fill="#fff" stroke="#D85A30" stroke-width="3.5"/>
+            </svg>
+          </div>
+          <p class="tutorial-card__text">Haz clic punto por punto rodeando el área, sin cruzar las líneas. Agrega al menos 3 puntos y cierra haciendo clic en el primero (el que late).</p>
+        </div>
+
+        <div class="tutorial-card tutorial-card--bad">
+          <span class="tutorial-card__badge"><i class="fas fa-times"></i> Forma incorrecta</span>
+          <div class="tutorial-anim">
+            <svg viewBox="0 0 260 150" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <polygon points="55,35 205,115 205,35 55,115" fill="#dc2626" fill-opacity="0.10"/>
+              <polygon points="55,35 205,115 205,35 55,115" fill="none" stroke="#dc2626" stroke-width="3" stroke-dasharray="8 8" style="animation:tut-ants .6s linear infinite;"/>
+              <circle cx="55" cy="35" r="5.5" fill="#fff" stroke="#dc2626" stroke-width="3"/>
+              <circle cx="205" cy="115" r="5.5" fill="#fff" stroke="#dc2626" stroke-width="3"/>
+              <circle cx="205" cy="35" r="5.5" fill="#fff" stroke="#dc2626" stroke-width="3"/>
+              <circle cx="55" cy="115" r="5.5" fill="#fff" stroke="#dc2626" stroke-width="3"/>
+              <circle cx="130" cy="75" r="11" fill="#dc2626" opacity="0.45" style="transform-origin:130px 75px; animation:tut-pulse 1.6s ease-out infinite;"/>
+              <g stroke="#fff" stroke-width="3" stroke-linecap="round">
+                <line x1="124" y1="69" x2="136" y2="81"/><line x1="136" y1="69" x2="124" y2="81"/>
+              </g>
+            </svg>
+          </div>
+          <p class="tutorial-card__text">No cruces las líneas entre sí: el polígono se deforma o queda inválido. Tampoco uses menos de 3 puntos.</p>
+        </div>
+      </div>
+
+      <div class="tutorial-modal__foot">
+        <button type="button" id="trazado-tutorial-ok" class="btn btn-primary btn-sm">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Crear Parcelación -->
+  <div id="parcelacion-modal" class="map-overlay panel modal hidden">
+    <div class="panel__head">
+      <span class="panel__title"><i class="fas fa-seedling"></i>Crear Parcelación</span>
+    </div>
+    <form id="parcelacion-form" class="form-grid">
+      <div class="field" style="margin:0;">
+        <label for="latitud">Latitud</label>
+        <input type="text" id="latitud" name="latitud" class="input" readonly>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="longitud">Longitud</label>
+        <input type="text" id="longitud" name="longitud" class="input" readonly>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="SelectComunaModal">Comuna</label>
+        <select id="SelectComunaModal" class="input"><option value="">Seleccionar</option></select>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="SelectFase">Fase</label>
+        <select id="SelectFase" class="input"><option value="">Seleccionar</option></select>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="SelectCultivo">Cultivo</label>
+        <select id="SelectCultivo" class="input"><option value="">Seleccionar</option></select>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="Selectregistro">Registro</label>
+        <select id="Selectregistro" class="input">
+          <option value="">Seleccionar</option>
+          <option value="1">Registrada</option>
+          <option value="0">No Registrada</option>
+        </select>
+      </div>
+      <div class="col-span-2 modal-actions">
+        <button type="button" id="cancel-parcelacion" class="btn btn-ghost btn-sm">Cancelar</button>
+        <button type="button" id="save-parcelacion" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Leyenda -->
+  <div class="map-overlay legend">
+    <div class="legend__title">Leyenda</div>
+    <div class="legend__list">
+      <div class="legend__item"><span class="swatch swatch--trazado"></span> Trazado</div>
+      <div class="legend__item"><span class="swatch swatch--radio"></span> Radio</div>
+      <div class="legend__item"><span class="swatch swatch--parcela"></span> Parcela</div>
+      <div class="legend__item"><span class="swatch swatch--inactiva"></span> Inactiva</div>
+    </div>
+  </div>
+
+  <!-- Centrar Mapa -->
+  <button id="center-map" class="map-overlay center-btn btn btn-soft btn-sm">
+    <i class="fas fa-crosshairs"></i> Centrar
+  </button>
+
+</div>
+
+<!-- Scripts del mapa -->
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
+<script src="/js/multiselect.js"></script>
+<script type="module" src="js/map.js"></script>
+<script type="module" src="/js/quarantine.js"></script>
+<script type="module" src="js/parcelas.js"></script>
+<script type="module" src="js/api.js"></script>
+<script type="module" src="js/sidebar.js"></script>
+<script type="module" src="js/filter.js"></script>

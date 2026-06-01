@@ -17,18 +17,56 @@ let nameTable = getTableNameFromUrl(); // Valor dinámico basado en la URL
 /********************************** READ ********************************/
 /****** LEE TODOS LOS ITEMS, CREA LA TABLA Y RELLENA CON LOS ITEMS ******/
 // Cargar ítems según la tabla seleccionada
+// Mapeo de tabla del CRUD -> apartado y capacidad de eliminar
+const CRUD_PERM = {
+    parcelacion: { apartado: 'parcelaciones',  del: 'parcelacion.eliminar' },
+    cuarentena:  { apartado: 'cuarentenas',    del: 'cuarentena.eliminar', crearCap: 'cuarentena.activar_desactivar' },
+    sector:      { apartado: 'datos_maestros', del: 'maestro.eliminar' },
+    cultivo:     { apartado: 'datos_maestros', del: 'maestro.eliminar' },
+    fase:        { apartado: 'datos_maestros', del: 'maestro.eliminar' },
+    region:      { apartado: 'datos_maestros', del: 'maestro.eliminar' },
+    provincia:   { apartado: 'datos_maestros', del: 'maestro.eliminar' },
+    usuario:     { apartado: 'usuarios',       del: 'usuario.eliminar' }
+};
+function puedeCrearTabla(t) {
+    const c = CRUD_PERM[t]; if (!c || !window.Perm) return false;
+    return c.crearCap ? window.Perm.tieneCapacidad(c.crearCap) : window.Perm.puedeAccionar(c.apartado);
+}
+function puedeEditarTabla(t) {
+    const c = CRUD_PERM[t]; if (!c || !window.Perm) return false;
+    return window.Perm.puedeAccionar(c.apartado);
+}
+function puedeEliminarTabla(t) {
+    const c = CRUD_PERM[t]; if (!c || !window.Perm) return false;
+    return window.Perm.tieneCapacidad(c.del);
+}
+
 async function loadItems(Table, sectors = [], phases = [], crops = [], registered = [], regiones = [], provincias = [], radio = [], roles = []) {
+    // Guardar los filtros aplicados para volver a marcarlos al reconstruir los selects
+    window.appliedFilters = {
+        filter_sector: sectors || [],
+        filter_fase: phases || [],
+        filter_cultivo: crops || [],
+        filter_registrada: registered || [],
+        filter_region: regiones || [],
+        filter_provincia: provincias || [],
+        filter_radio: radio || [],
+        filter_rol: roles || []
+    };
     const crudTitle = document.getElementById('crud-title'); // Obtiene el elemento del título
     const addButton = document.getElementById('addButton'); // Obtiene el botón de agregar
     const filters = document.getElementById('filters');
     nameTable = Table; // Guarda el nombre de la tabla seleccionada
     console.log(nameTable); // Imprime el nombre de la tabla en la consola
-    addButton.style.display = 'block'; // Muestra el botón de agregar
+    addButton.style.setProperty('display', puedeCrearTabla(Table) ? 'inline-flex' : 'none', 'important'); // Mostrar 'Agregar' solo si puede crear
 
 
     let url = `api/${nameTable}`; // URL base
     
-    // Cambiar el título y el botón según la tabla
+    // Cambiar el título y el botón según la tabla.
+    // Solo se reconstruyen los filtros cuando CAMBIA la tabla; al aplicar un
+    // filtro sobre la misma tabla se omite esto y solo se recarga la tabla.
+    if (nameTable !== window.__crudTable) {
     if (nameTable === 'parcelacion') {
         crudTitle.textContent = 'Gestión de Parcelaciones';
         crudTitle.className = 'text-5xl font-bold';
@@ -163,8 +201,11 @@ async function loadItems(Table, sectors = [], phases = [], crops = [], registere
                 <div class="flex flex-col w-70">
                 <select name="filter_sector" id="filter_rol" class="block w-full appearance-none border border-gray-300 text-gray-700 py-2 px-3 rounded leading-tight focus:outline-none focus:border-blue-500">
                     <option value="">Todos los roles</option>
-                    <option value="Admin">Administrador</option>
-                    <option value="User">Usuario</option>
+                    <option value="administrador">Administrador</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="inspector">Inspector</option>
+                    <option value="analista">Analista</option>
+                    <option value="lectura">Lectura</option>
                 </select>
             </div>
         </div>
@@ -174,10 +215,12 @@ async function loadItems(Table, sectors = [], phases = [], crops = [], registere
         crudTitle.textContent = 'Gestión de Historial';
         crudTitle.className = 'text-5xl font-bold';
         filters.innerHTML = ``;
-        addButton.style.display = 'none'; // Oculta el botón de agregar para historial
+        addButton.style.setProperty('display', 'none', 'important'); // Oculta el botón de agregar para historial
         //addButton.textContent = 'Agregar Historial';
         //addButton.onclick = () => openModal('historial');
     }
+    window.__crudTable = nameTable; // recordar la tabla cuyos filtros ya están armados
+    } // fin: reconstruir filtros solo al cambiar de tabla
 
     // Si hay filtros, construir la URL con parámetros
     if (sectors.length || phases.length || crops.length || registered.length || regiones.length || provincias.length || radio.length || roles.length) {
@@ -208,6 +251,9 @@ async function loadItems(Table, sectors = [], phases = [], crops = [], registere
         // Limpiar contenido previo
         itemList.innerHTML = '';
         tableHeaders.innerHTML = '';
+
+        const emptyEl = document.getElementById('crud-empty');
+        if (emptyEl) emptyEl.style.display = (items && items.length > 0) ? 'none' : 'flex';
 
         if (items.length > 0) {
             // Definir encabezados según los datos
@@ -263,8 +309,8 @@ async function loadItems(Table, sectors = [], phases = [], crops = [], registere
                         if (index === 2) {
                             const imagenTd = document.createElement('td');
                             const verImagenBtn = document.createElement('button'); // Crear botón para ver imagen
-                            verImagenBtn.textContent = 'Ver Imagen'; // Texto del botón
-                        verImagenBtn.className='text-black-700 font-semibold hover:text-black py-2 px-4 border border-blue-500 hover:border-black rounded'; // Clase del boton 
+                            verImagenBtn.innerHTML = '<i class="fas fa-image"></i> Ver Imagen'; // Texto del botón
+                        verImagenBtn.className='crud-action crud-action--img'; // Clase del boton 
                             verImagenBtn.onclick = () => viewImage(item.id); // Llamar a la función viewImage
                             imagenTd.appendChild(verImagenBtn); // Agregar botón a la celda
                             row.appendChild(imagenTd); // Agregar celda de imagen a la fila
@@ -273,8 +319,8 @@ async function loadItems(Table, sectors = [], phases = [], crops = [], registere
                 if (nameTable !== 'historial') {
                     const actionsTd = document.createElement('td'); // Crear celda de acciones
                     actionsTd.innerHTML = `
-                        <button class="text-black-700 font-semibold hover:text-black py-2 px-4 border border-blue-500 hover:border-black rounded" onclick="editItem(${item.id})">Editar</button>
-                        <button class="text-black-700 font-semibold hover:text-black py-2 px-4 border border-blue-500 hover:border-black rounded" onclick="deleteItem(${item.id})">Eliminar</button>
+                        ${puedeEditarTabla(nameTable) ? `<button class="crud-action crud-action--edit" onclick="editItem(${item.id})"><i class="fas fa-pen"></i> Editar</button>` : ''}
+                        ${puedeEliminarTabla(nameTable) ? `<button class="crud-action crud-action--delete" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i> Eliminar</button>` : ''}
                     `;
                     row.appendChild(actionsTd); // Agregar celda de acciones a la fila
                 }
@@ -467,12 +513,11 @@ async function openModal(nameTable, item = null) {
             <input type="text" id="dv_rut" placeholder="Dígito Verificador" name="dv_rut" required pattern="^[0-9Kk]$" title="Ingrese un dígito o 'K'">
             <select name="rol" id="rol" required>
                 <option value="">Seleccione rol</option>
-                <option value="Admin">Administrador</option>
-                <option value="User">Usuario</option>
             </select>
             <input type="text" id="usuario" placeholder="Nombre de usuario" name="usuario" required>
             ${passwordField}  <!-- Solo se incluirá el campo de password si es creación -->
         `;
+        poblarRolesSelect('rol', item ? item.rol : '');
     }
     
     // Si hay un item, llenar el formulario con los datos
@@ -620,12 +665,12 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 
         // Validar longitud mínima del RUT
         if (rutInput.replace(/\./g, '').length < 7) {
-            alert('El RUT debe tener al menos 7 dígitos.');
+            window.notify('El RUT debe tener al menos 7 dígitos.');
             return; // Salir de la función si la longitud no es válida
         }
         // Validar el RUT
         if (!validarRUT(rutInput, dvInput)) {
-            alert('El dígito verificador del RUT es incorrecto.'); // Alerta si el dv no es inválido
+            window.notify('El dígito verificador del RUT es incorrecto.'); // Alerta si el dv no es inválido
             return; // Salir de la función si la validación falla
         }
     }
@@ -726,7 +771,7 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
             if (!response.ok) {
                 const errorData = await response.json(); // Obtener los datos de error del servidor
                 if (errorData.error) {
-                    alert(errorData.error); // Mostrar alerta con el mensaje de error
+                    window.notify(errorData.error); // Mostrar alerta con el mensaje de error
                     return; // Salir de la función si hay un error en la respuesta
                 } else {
                     throw new Error('Error al crear el ítem');
@@ -749,7 +794,7 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 async function deleteItem(id) {
 
     // Alerta de confirmación al usuario antes de proceder con la eliminación
-    const confirmation = confirm('¿Estás seguro de que deseas eliminar este ítem?');
+    const confirmation = await window.confirmar('¿Estás seguro de que deseas eliminar este ítem?');
 
     if (confirmation) { // Si el usuario confirma
         try {
@@ -760,7 +805,7 @@ async function deleteItem(id) {
 
             // Verifica si la respuesta fue exitosa
             if (response.ok) {
-                alert('Ítem eliminado con éxito.'); // Muestra un mensaje de éxito
+                window.notify('Ítem eliminado con éxito.'); // Muestra un mensaje de éxito
                 loadItems(nameTable); // Recargar la lista de ítems después de eliminar
             } else {
                 throw new Error('Error al eliminar el ítem'); // Lanza un error si la respuesta no es exitosa
@@ -768,7 +813,7 @@ async function deleteItem(id) {
         } catch (error) {
             // Captura cualquier error que ocurra durante el proceso
             console.error('Error al eliminar el ítem:', error);
-            alert('No se pudo eliminar el ítem.');
+            window.notify('No se pudo eliminar el ítem.');
         }
     }
 }
@@ -781,7 +826,7 @@ function validarCampos(formData) {
 
         // Verifica si el valor es una cadena antes de aplicar trim
         if (typeof value === 'string' && value.trim() === '') {
-            alert(`Los campos no pueden estar vacíos.`); // Muestra una alerta si el campo está vacío
+            window.notify(`Los campos no pueden estar vacíos.`); // Muestra una alerta si el campo está vacío
             return false; // Retorna false si hay un campo vacío
         }
         
@@ -847,7 +892,7 @@ async function logout() {
         window.location.href = '/login';
     } catch (error) {
         console.error('Error:', error);
-        alert('No se pudo cerrar la sesión. Intenta nuevamente.');
+        window.notify('No se pudo cerrar la sesión. Intenta nuevamente.');
     }
 }
 /******************************************************************************/
@@ -1232,3 +1277,21 @@ filterButton.addEventListener('click', () => {
     // Llamar a la función para cargar ítems filtrados
     loadItems('usuario', undefined, undefined, undefined, undefined, undefined, undefined, undefined, selectedRol);
 });
+// Llena un <select> de roles desde la BDD (para que aparezcan los roles nuevos
+// creados en Gestión de Roles). 'selected' preselecciona un código de rol.
+async function poblarRolesSelect(selectId, selected) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  try {
+    const res = await fetch('/api/rol/opciones', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return; // deja la opción placeholder
+    const roles = await res.json();
+    const actual = selected != null ? String(selected).toLowerCase() : '';
+    sel.innerHTML = '<option value="">Seleccione rol</option>' +
+      roles.map(r => `<option value="${r.codigo}">${r.nombre}</option>`).join('');
+    if (actual) sel.value = actual;
+    if (window.enhanceSelect) window.enhanceSelect(sel);  // dropdown diseñado de la app
+  } catch (e) {
+    console.error('No se pudieron cargar los roles:', e);
+  }
+}

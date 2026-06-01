@@ -89,4 +89,71 @@ const geocoder = new MapboxGeocoder({
 document.getElementById('map-search').appendChild(geocoder.onAdd(map));
 
 
+// ===== Selector de mapa base (botón colapsable, abajo a la derecha) =====
+const BASEMAPS = [
+  { id: 'satellite-streets-v12', label: 'Satélite', icon: 'fa-satellite' },
+  { id: 'streets-v12',           label: 'Calles',   icon: 'fa-road' },
+  { id: 'outdoors-v12',          label: 'Terreno',  icon: 'fa-mountain' },
+];
+let basemapActual = 'satellite-streets-v12';
+let primeraCargaEstilo = true;
+
+class BasemapSwitcher {
+  onAdd(m) {
+    this._map = m;
+    const c = document.createElement('div');
+    c.className = 'mapboxgl-ctrl basemap-switcher';
+
+    // Panel con las opciones (se muestra al abrir)
+    const panel = document.createElement('div');
+    panel.className = 'basemap-switcher__panel';
+    BASEMAPS.forEach(b => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.style = b.id;
+      btn.className = 'basemap-switcher__btn' + (b.id === basemapActual ? ' is-active' : '');
+      btn.innerHTML = `<i class="fas ${b.icon}"></i><span class="basemap-switcher__label">${b.label}</span>`;
+      btn.addEventListener('click', () => {
+        c.classList.remove('is-open');
+        if (b.id === basemapActual) return;
+        basemapActual = b.id;
+        panel.querySelectorAll('.basemap-switcher__btn').forEach(x =>
+          x.classList.toggle('is-active', x.dataset.style === b.id));
+        m.setStyle('mapbox://styles/mapbox/' + b.id);
+      });
+      panel.appendChild(btn);
+    });
+
+    // Botón con ícono de capas que abre/cierra el panel
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'basemap-switcher__toggle';
+    toggle.title = 'Cambiar mapa';
+    toggle.innerHTML = '<i class="fas fa-layer-group"></i>';
+    toggle.addEventListener('click', (e) => { e.stopPropagation(); c.classList.toggle('is-open'); });
+
+    // Cerrar al hacer clic fuera del control
+    this._docClick = (ev) => { if (!c.contains(ev.target)) c.classList.remove('is-open'); };
+    document.addEventListener('click', this._docClick);
+
+    c.appendChild(panel);
+    c.appendChild(toggle);
+    this._container = c;
+    return c;
+  }
+  onRemove() {
+    document.removeEventListener('click', this._docClick);
+    this._container.parentNode.removeChild(this._container);
+  }
+}
+
+map.addControl(new BasemapSwitcher(), 'bottom-right');
+
+// setStyle borra las capas personalizadas; al cargar el nuevo estilo avisamos
+// para volver a dibujarlas. La PRIMERA carga la maneja el flujo normal de la app.
+map.on('style.load', () => {
+  if (primeraCargaEstilo) { primeraCargaEstilo = false; return; }
+  window.dispatchEvent(new Event('basemap:loaded'));
+});
+
 export { map, directions };

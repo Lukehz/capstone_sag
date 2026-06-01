@@ -31,13 +31,19 @@ function updateParcelasOnMap(parcelas) {
     parcelas.forEach(parcela => {
         const marker = new mapboxgl.Marker()
             .setLngLat([parcela.longitud, parcela.latitud])
-            .setPopup(new mapboxgl.Popup().setHTML(`
-                <h3>Parcela ID: ${parcela.ID}</h3>
-                <p>Coordenadas: ${parcela.latitud}, ${parcela.longitud}</p>
-                <p>Fase: ${parcela.Fase}</p>
-                <p>Cultivo: ${parcela.Cultivo}</p>
-                <p>Comuna: ${parcela.Comuna}</p>
-                <p>Registrada: ${parcela.Registrada}</p>
+            .setPopup(new mapboxgl.Popup({ offset: 18, maxWidth: '260px' }).setHTML(`
+                <div class="lm-popup">
+                  <div class="lm-popup__head">
+                    <span class="lm-popup__title"><i class="fas fa-seedling"></i> Parcela #${parcela.ID}</span>
+                    <span class="lm-popup__badge ${parcela.Registrada === 'Registrada' ? 'is-ok' : 'is-warn'}">${parcela.Registrada}</span>
+                  </div>
+                  <div class="lm-popup__body">
+                    <div class="lm-popup__row"><span><i class="fas fa-layer-group"></i> Fase</span><b>${parcela.Fase}</b></div>
+                    <div class="lm-popup__row"><span><i class="fas fa-leaf"></i> Cultivo</span><b>${parcela.Cultivo}</b></div>
+                    <div class="lm-popup__row"><span><i class="fas fa-map-marker-alt"></i> Comuna</span><b>${parcela.Comuna}</b></div>
+                    <div class="lm-popup__row"><span><i class="fas fa-location-arrow"></i> Coords</span><b>${Number(parcela.latitud).toFixed(5)}, ${Number(parcela.longitud).toFixed(5)}</b></div>
+                  </div>
+                </div>
             `))
             .addTo(map);
 

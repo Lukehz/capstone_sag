@@ -1,0 +1,49 @@
+<div class="roles-page">
+  <div class="roles-head">
+    <div>
+      <h1>Gestión de Roles</h1>
+      <p>Crea roles y define, por cada apartado, si pueden ver, crear/editar, eliminar o ejecutar la predicción.</p>
+    </div>
+  </div>
+
+  <div id="rol-msg" class="roles-msg" hidden></div>
+
+  <div class="roles-grid">
+    <aside class="roles-card roles-list-card">
+      <div class="roles-card__head">
+        <span>Roles</span>
+        <button type="button" id="rol-nuevo" class="roles-btn roles-btn--soft"><i class="fas fa-plus"></i> Nuevo</button>
+      </div>
+      <div id="rol-list" class="roles-list"><div class="roles-empty">Cargando…</div></div>
+    </aside>
+
+    <section class="roles-card roles-editor-card">
+      <div class="roles-fields">
+        <label class="roles-field">
+          <span>Nombre del rol</span>
+          <input type="text" id="rol-nombre" maxlength="60" placeholder="Ej: Coordinador regional">
+        </label>
+        <label class="roles-field roles-field--grow">
+          <span>Descripción</span>
+          <input type="text" id="rol-desc" maxlength="160" placeholder="Breve descripción del rol">
+        </label>
+      </div>
+
+      <p class="roles-subt">Acceso por apartado</p>
+      <div id="rol-matrix" class="roles-matrix"></div>
+
+      <p class="roles-subt">Capacidades especiales</p>
+      <div id="rol-caps" class="roles-caps"></div>
+
+      <div class="roles-actions">
+        <button type="button" id="rol-eliminar" class="roles-btn roles-btn--danger" hidden><i class="fas fa-trash"></i> Eliminar</button>
+        <div class="roles-actions__right">
+          <button type="button" id="rol-cancelar" class="roles-btn roles-btn--ghost">Cancelar</button>
+          <button type="button" id="rol-guardar" class="roles-btn roles-btn--primary"><i class="fas fa-save"></i> Guardar rol</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="/js/roles.js"></script>

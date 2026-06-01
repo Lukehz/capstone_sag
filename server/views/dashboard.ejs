@@ -1,0 +1,118 @@
+<style>
+  .dash{flex:1; width:100%; height:100vh; overflow-y:auto; background:var(--bg); color:var(--text);}
+  .dash-wrap{max-width:1100px; margin:0 auto; padding:28px 24px 56px;}
+  .dash-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
+  .dash-head h1{margin:0 0 3px; font-size:22px; font-weight:700; letter-spacing:-.01em;}
+  .dash-head p{margin:0; font-size:13.5px; color:var(--text-muted);}
+  .dash-tag{font-size:12px; color:var(--text-soft); border:1px solid var(--border); padding:4px 10px; border-radius:999px;}
+  .dash-divider{display:flex; align-items:center; gap:10px; margin:26px 0 14px;}
+  .dash-divider::before,.dash-divider::after{content:""; flex:1; height:1px; background:var(--border);}
+  .dash-divider span{display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; background:var(--brand-soft-bg); color:var(--brand-soft-text); padding:5px 13px; border-radius:999px;}
+  .dash-section-title{font-size:13px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px;}
+  .kpi{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:15px 16px;}
+  .kpi__label{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-muted); margin-bottom:6px;}
+  .kpi__label i{color:var(--brand-icon);}
+  .kpi__value{font-size:25px; font-weight:700; line-height:1;}
+  .kpi__value small{font-size:13px; font-weight:500; color:var(--text-soft);}
+  .panels{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;}
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px;}
+  .panel--full{grid-column:1 / -1;}
+  .panel h3{margin:0 0 14px; font-size:15px; font-weight:600;}
+  .panel__canvas{position:relative; height:230px;}
+  .dash-list{display:flex; flex-direction:column; gap:9px; font-size:13px;}
+  .dash-list__row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:9px; border-bottom:1px solid var(--border);}
+  .dash-list__row:last-child{border-bottom:0; padding-bottom:0;}
+  .dash-list__row i{color:var(--brand-icon); margin-right:7px;}
+  .dash-muted{color:var(--text-soft);}
+  .dash-empty{font-size:13px; color:var(--text-soft); padding:8px 0;}
+  @media (max-width:760px){ .panels{grid-template-columns:1fr;} }
+</style>
+
+<div class="dash">
+  <div class="dash-wrap">
+
+    <div class="dash-head">
+      <div>
+        <h1>Panel de control</h1>
+        <p>Resumen fitosanitario y territorial · SAG</p>
+      </div>
+      <span class="dash-tag" id="dash-fecha"></span>
+    </div>
+
+    <!-- ============ SECCIÓN ADMINISTRADOR (solo administrador) ============ -->
+    <% if (typeof puedeVer === 'function' && puedeVer('usuarios')) { %>
+    <div id="dash-admin">
+      <div class="dash-divider"><span><i class="fas fa-lock"></i> Solo administrador</span></div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-users"></i> Usuarios</div><div class="kpi__value" id="adm-usuarios">—</div></div>
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-user-shield"></i> Roles</div><div class="kpi__value" id="adm-roles">—</div></div>
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-moon"></i> Usan tema oscuro</div><div class="kpi__value" id="adm-oscuro">—</div></div>
+      </div>
+
+      <div class="panels">
+        <div class="panel"><h3>Usuarios por rol</h3><div class="panel__canvas"><canvas id="chart-rol"></canvas></div></div>
+        <div class="panel"><h3>Preferencia de tema</h3><div class="panel__canvas"><canvas id="chart-tema"></canvas></div></div>
+        <div class="panel panel--full">
+          <h3>Últimos usuarios</h3>
+          <div class="dash-list" id="adm-ultimos"><div class="dash-empty">Cargando…</div></div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- ============ ACCESOS AL SISTEMA (quien pueda ver la bitácora) ====== -->
+    <% if (typeof puedeVer === 'function' && puedeVer('bitacora')) { %>
+    <div id="dash-accesos">
+      <div class="dash-divider"><span><i class="fas fa-user-shield"></i> Accesos al sistema</span></div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-sign-in-alt"></i> Ingresos hoy</div><div class="kpi__value" id="acc-hoy">—</div></div>
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-users"></i> Usuarios distintos hoy</div><div class="kpi__value" id="acc-usuarios">—</div></div>
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-exclamation-triangle"></i> Intentos fallidos (7 días)</div><div class="kpi__value" id="acc-fallidos">—</div></div>
+        <div class="kpi"><div class="kpi__label"><i class="fas fa-database"></i> Registros totales</div><div class="kpi__value" id="acc-total">—</div></div>
+      </div>
+
+      <div class="panels">
+        <div class="panel panel--full">
+          <h3>Últimos accesos <a href="/bitacora" class="dash-link">Ver bitácora completa <i class="fas fa-arrow-right"></i></a></h3>
+          <div class="dash-list" id="acc-ultimos"><div class="dash-empty">Cargando…</div></div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- ============ SECCIÓN GENERAL (todos los roles) ============ -->
+    <p class="dash-section-title">Información general</p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="kpi__label"><i class="fas fa-map"></i> Parcelaciones</div><div class="kpi__value" id="kpi-parcelaciones">—</div></div>
+      <div class="kpi"><div class="kpi__label"><i class="fas fa-exclamation-triangle"></i> Cuarentenas activas</div><div class="kpi__value" id="kpi-cuarentenas">—</div></div>
+      <div class="kpi"><div class="kpi__label"><i class="fas fa-seedling"></i> Cultivos</div><div class="kpi__value" id="kpi-cultivos">—</div></div>
+      <div class="kpi"><div class="kpi__label"><i class="fas fa-map-pin"></i> Comunas cubiertas</div><div class="kpi__value" id="kpi-comunas">—</div></div>
+    </div>
+
+    <div class="panels">
+      <div class="panel"><h3>Parcelaciones por cultivo</h3><div class="panel__canvas"><canvas id="chart-cultivo"></canvas></div></div>
+      <div class="panel"><h3>Cuarentenas: estado</h3><div class="panel__canvas"><canvas id="chart-cuarentenas"></canvas></div></div>
+      <div class="panel"><h3>Parcelaciones por región</h3><div class="panel__canvas"><canvas id="chart-region"></canvas></div></div>
+      <div class="panel"><h3>Parcelaciones por fase</h3><div class="panel__canvas"><canvas id="chart-fase"></canvas></div></div>
+      <div class="panel panel--full"><h3>Parcelaciones creadas por mes</h3><div class="panel__canvas"><canvas id="chart-mes"></canvas></div></div>
+      <div class="panel panel--full">
+        <h3>Actividad reciente</h3>
+        <div class="dash-list" id="dash-actividad"><div class="dash-empty">Cargando…</div></div>
+      </div>
+    </div>
+
+    <!-- ============ Power BI anterior (DESHABILITADO) ============
+    <div class="ml-[15%] w-full h-screen bg-white overflow-y-auto">
+        <iframe title="dashboard sag" width="100%" height="850" src="https://app.powerbi.com/view?r=eyJrIjoiYzQyZmU5NGMtZDFhYi00MWNjLTg3NjAtNWM4ZWIxOGEyNzk0IiwidCI6IjEwMjU1ZDY4LTZmOGYtNDVlMy1iNzRiLWJmY2QxYWYyODNhMiIsImMiOjR9" frameborder="0" allowFullScreen="true"></iframe>
+    </div>
+    ============================================================= -->
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/js/dashboard.js"></script>

@@ -1,0 +1,53 @@
+<div class="ml-[15%] w-full h-screen bg-white overflow-y-auto">
+    <div class="bg-white p-6 rounded-lg">
+      <h1 class="text-xl font-bold text-center mb-4">Cargar Imagen</h1>
+      <form action="/prediccion" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <!-- Input para cargar la imagen -->
+        <input
+          type="file"
+          name="image"
+          accept="image/*"
+          required
+          class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+          id="imageInput"
+        />
+  
+        <!-- Contenedor para la vista previa -->
+        <div class="mt-4">
+          <h2 class="text-center text-sm font-bold">Vista Previa</h2>
+          <img
+            id="imagePreview"
+            src="#"
+            alt="Imagen cargada"
+            class="w-full max-h-64 object-contain mx-auto hidden"
+          />
+        </div>
+  
+        <button
+          type="submit"
+          class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg"
+        >
+          Predecir
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // Obtener los elementos
+    const imageInput = document.getElementById("imageInput");
+    const imagePreview = document.getElementById("imagePreview");
+  
+    // Manejar el evento de cambio en el input
+    imageInput.addEventListener("change", (event) => {
+      const file = event.target.files[0]; // Obtener el archivo cargado
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imagePreview.src = e.target.result; // Configurar la imagen para vista previa
+          imagePreview.classList.remove("hidden"); // Mostrar la imagen
+        };
+        reader.readAsDataURL(file); // Leer el archivo como una URL de datos
+      }
+    });
+  </script>

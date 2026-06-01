@@ -1,0 +1,86 @@
+<style>
+  .perfil-scope{flex:1; width:100%; height:100vh; overflow-y:auto; background:var(--bg); color:var(--text);}
+  .perfil-wrap{max-width:880px; margin:0 auto; padding:32px 24px 56px;}
+  .perfil-hero{
+    display:flex; align-items:center; gap:20px; padding:28px;
+    border-radius:20px; color:#fff;
+    background:linear-gradient(135deg, var(--brand-600), var(--brand-500));
+    box-shadow:0 14px 34px rgba(15,110,86,.28);
+  }
+  .perfil-hero__avatar{
+    width:84px; height:84px; flex:none; border-radius:50%;
+    background:rgba(255,255,255,.18); border:3px solid rgba(255,255,255,.5);
+    display:grid; place-items:center; font-size:30px; font-weight:700; text-transform:uppercase;
+  }
+  .perfil-hero__info h1{margin:0 0 6px; font-size:25px; font-weight:700; letter-spacing:-.01em;}
+  .perfil-hero__role{
+    display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600;
+    background:rgba(255,255,255,.2); padding:5px 12px; border-radius:999px; text-transform:capitalize;
+  }
+  .perfil-card{
+    margin-top:22px; background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:26px 26px 28px; box-shadow:0 6px 20px rgba(0,0,0,.04);
+  }
+  .perfil-card__head{margin-bottom:20px;}
+  .perfil-card__head h2{margin:0 0 4px; font-size:18px; font-weight:700; color:var(--text);}
+  .perfil-card__head p{margin:0; font-size:13.5px; color:var(--text-muted);}
+  .perfil-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .perfil-field{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:13px 15px;}
+  .perfil-field__label{
+    display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600;
+    color:var(--text-soft); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px;
+  }
+  .perfil-field__label i{color:var(--brand-icon); font-size:12px;}
+  .perfil-field__value{display:block; font-size:15.5px; font-weight:500; color:var(--text); word-break:break-word;}
+  .perfil-note{
+    display:flex; align-items:center; gap:9px; margin-top:18px; font-size:13px;
+    background:var(--brand-soft-bg); color:var(--brand-soft-text); border-radius:11px; padding:11px 14px;
+  }
+  @media (max-width:640px){ .perfil-grid{grid-template-columns:1fr;} .perfil-hero{flex-direction:column; text-align:center;} }
+</style>
+
+<div class="perfil-scope">
+  <div class="perfil-wrap">
+    <section class="perfil-hero">
+      <div class="perfil-hero__avatar"><%= (usuario.nombre || 'U').substring(0,1) %><%= (usuario.apellido || '').substring(0,1) %></div>
+      <div class="perfil-hero__info">
+        <h1><%= usuario.nombre %> <%= usuario.apellido %></h1>
+        <span class="perfil-hero__role"><i class="fas fa-id-badge"></i> <%= usuario.rol %></span>
+      </div>
+    </section>
+
+    <section class="perfil-card">
+      <div class="perfil-card__head">
+        <h2>Detalles personales</h2>
+        <p>Información de tu cuenta</p>
+      </div>
+      <div class="perfil-grid">
+        <div class="perfil-field">
+          <span class="perfil-field__label"><i class="fas fa-user"></i> Nombre</span>
+          <span class="perfil-field__value"><%= usuario.nombre %></span>
+        </div>
+        <div class="perfil-field">
+          <span class="perfil-field__label"><i class="fas fa-user"></i> Apellido</span>
+          <span class="perfil-field__value"><%= usuario.apellido %></span>
+        </div>
+        <div class="perfil-field">
+          <span class="perfil-field__label"><i class="fas fa-id-card"></i> RUT</span>
+          <span class="perfil-field__value"><%= usuario.rut %>-<%= usuario.dv_rut %></span>
+        </div>
+        <div class="perfil-field">
+          <span class="perfil-field__label"><i class="fas fa-at"></i> Usuario</span>
+          <span class="perfil-field__value"><%= usuario.usuario %></span>
+        </div>
+        <div class="perfil-field">
+          <span class="perfil-field__label"><i class="fas fa-envelope"></i> Correo</span>
+          <span class="perfil-field__value"><%= usuario.correo %></span>
+        </div>
+        <div class="perfil-field">
+          <span class="perfil-field__label"><i class="fas fa-user-shield"></i> Rol</span>
+          <span class="perfil-field__value" style="text-transform:capitalize;"><%= usuario.rol %></span>
+        </div>
+      </div>
+      <div class="perfil-note"><i class="fas fa-lock"></i> Esta información es de solo lectura. Para cambios, contacta a un administrador.</div>
+    </section>
+  </div>
+</div>

@@ -1,0 +1,67 @@
+<div class="bita-page">
+  <div class="bita-head">
+    <div>
+      <h1>Bitácora de accesos</h1>
+      <p>Registro de ingresos, cierres de sesión e intentos fallidos del sistema. Solo lectura.</p>
+    </div>
+    <button type="button" id="bita-refrescar" class="bita-btn"><i class="fas fa-sync-alt"></i> Actualizar</button>
+  </div>
+
+  <div class="bita-filtros">
+    <div class="bita-field bita-field--grow">
+      <label>Buscar</label>
+      <input id="f-q" type="search" placeholder="Usuario, nombre o IP…" autocomplete="off">
+    </div>
+    <div class="bita-field">
+      <label>Evento</label>
+      <select id="f-evento">
+        <option value="">Todos</option>
+        <option value="login">Ingreso</option>
+        <option value="logout">Cierre de sesión</option>
+        <option value="login_fallido">Intento fallido</option>
+      </select>
+    </div>
+    <div class="bita-field">
+      <label>Resultado</label>
+      <select id="f-exito">
+        <option value="">Todos</option>
+        <option value="1">Exitoso</option>
+        <option value="0">Fallido</option>
+      </select>
+    </div>
+    <div class="bita-field">
+      <label>Desde</label>
+      <input id="f-desde" type="date">
+    </div>
+    <div class="bita-field">
+      <label>Hasta</label>
+      <input id="f-hasta" type="date">
+    </div>
+    <button type="button" id="bita-limpiar" class="bita-btn bita-btn--ghost">Limpiar</button>
+  </div>
+
+  <div id="bita-msg" class="bita-msg" hidden></div>
+
+  <div class="bita-tablewrap">
+    <table class="bita-table">
+      <thead>
+        <tr>
+          <th>Fecha y hora</th>
+          <th>Usuario</th>
+          <th>Nombre</th>
+          <th>Rol</th>
+          <th>Evento</th>
+          <th>IP</th>
+          <th>Navegador</th>
+        </tr>
+      </thead>
+      <tbody id="bita-body">
+        <tr><td colspan="7" class="bita-empty">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bita-foot"><span id="bita-count"></span></div>
+</div>
+
+<script src="/js/bitacora.js"></script>

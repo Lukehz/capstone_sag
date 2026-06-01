@@ -1,77 +1,77 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const filterButton = document.getElementById("filter-button");
-    const filterPanel = document.getElementById("filter-panel");
-    const applyFilterButton = document.getElementById("apply-filter");
-  
-    // Alternar visibilidad del panel de filtros
-    filterButton.addEventListener("click", () => {
-      filterPanel.classList.toggle("hidden");
-    });
-  
-    // Aplicar filtros
-    applyFilterButton.addEventListener("click", () => {
-      const filters = [];
-      document.querySelectorAll("#filter-options input[type='checkbox']:checked").forEach((checkbox) => {
-        filters.push(checkbox.id);
-      });
-      console.log("Filtros aplicados:", filters);
-  
-      // Aquí puedes implementar la lógica para aplicar los filtros
-      alert("Filtros aplicados: " + filters.join(", "));
-  
-      // Ocultar el panel después de aplicar los filtros
-      filterPanel.classList.add("hidden");
-    });
-  });
+/* filter.js — manejo de paneles del mapa (filtros, crear cuarentena, crear parcelación) */
 
-  function setupSidebarLinks() {
-    const sidebarLinks = document.querySelectorAll("a[data-load-table]");
-    sidebarLinks.forEach((link) => {
-        link.addEventListener("click", (event) => {
-            event.preventDefault();
-            const tableName = link.getAttribute("data-load-table");
-            loadItems(tableName);
-            history.pushState(null, "", link.href); // Actualiza la URL sin recargar
-        });
-    });
+const $ = (id) => document.getElementById(id);
+
+function hide(el) { if (el) el.classList.add("hidden"); }
+function toggle(el, others = []) {
+  if (!el) return;
+  const willShow = el.classList.contains("hidden");
+  others.forEach(hide);
+  el.classList.toggle("hidden", !willShow);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    setupSidebarLinks();
-    const currentTable = getTableNameFromUrl(); // Obtén la tabla inicial
-    if (currentTable) {
-        loadItems(currentTable); // Carga la tabla inicial
-    }
+  const filterPanel       = $("filter-panel");
+  const quarantinePanel   = $("quarantine-panel");
+  const parcelacionModal  = $("parcelacion-modal");
+
+  const filterButton      = $("filter-button");
+  const createQuarantine  = $("create-quarantine-button");
+  const createParcela     = $("create-parcela");
+  const cancelQuarantine  = $("cancel-quarantine");
+  const cancelParcela     = $("cancel-parcelacion");
+
+  // Botón de filtros (cierra los otros paneles al abrir)
+  if (filterButton) {
+    filterButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggle(filterPanel, [quarantinePanel, parcelacionModal]);
+    });
+  }
+
+  // Crear cuarentena
+  if (createQuarantine) {
+    createQuarantine.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggle(quarantinePanel, [filterPanel, parcelacionModal]);
+    });
+  }
+  if (cancelQuarantine) cancelQuarantine.addEventListener("click", () => hide(quarantinePanel));
+
+  // Crear parcelación
+  if (createParcela) {
+    createParcela.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggle(parcelacionModal, [filterPanel, quarantinePanel]);
+    });
+  }
+  if (cancelParcela) cancelParcela.addEventListener("click", () => hide(parcelacionModal));
+
+  // Cerrar el panel de filtros al hacer clic fuera de él
+  document.addEventListener("click", (e) => {
+    if (!filterPanel || filterPanel.classList.contains("hidden")) return;
+    if (filterPanel.contains(e.target) || (filterButton && filterButton.contains(e.target))) return;
+    hide(filterPanel);
+  });
 });
-  
-document.addEventListener("DOMContentLoaded", () => {
-  const createQuarantineButton = document.getElementById("create-quarantine-button");
-  const quarantinePanel = document.getElementById("quarantine-panel");
-  const cancelQuarantineButton = document.getElementById("cancel-quarantine");
 
-  // Alternar visibilidad del panel de cuarentena
-  createQuarantineButton.addEventListener("click", () => {
-      quarantinePanel.classList.toggle("hidden");
+/* ---- Soporte para las vistas CRUD (links del sidebar) ---- */
+function setupSidebarLinks() {
+  const sidebarLinks = document.querySelectorAll("a[data-load-table]");
+  sidebarLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const tableName = link.getAttribute("data-load-table");
+      if (typeof loadItems === "function") loadItems(tableName);
+      history.pushState(null, "", link.href);
+    });
   });
-
-  // Ocultar el panel de cuarentena al cancelar
-  cancelQuarantineButton.addEventListener("click", () => {
-      quarantinePanel.classList.add("hidden");
-  });
-});
+}
 
 document.addEventListener("DOMContentLoaded", () => {
-  const createParcelaButton = document.getElementById("create-parcela");
-  const parcelacionModal = document.getElementById("parcelacion-modal");
-  const cancelParcelaButton = document.getElementById("cancel-parcelacion");
-
-  // Alternar visibilidad del modal de parcelación
-  createParcelaButton.addEventListener("click", () => {
-    parcelacionModal.classList.toggle("hidden");
-  });
-
-  // Ocultar el modal de parcelación al cancelar
-  cancelParcelaButton.addEventListener("click", () => {
-    parcelacionModal.classList.add("hidden");
-  });
+  setupSidebarLinks();
+  if (typeof getTableNameFromUrl === "function") {
+    const currentTable = getTableNameFromUrl();
+    if (currentTable && typeof loadItems === "function") loadItems(currentTable);
+  }
 });
