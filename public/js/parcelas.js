@@ -129,19 +129,17 @@ function eliminarParcela(idParcela, boton) {
     });
 }
 
-// Variable para indicar si estamos en modo de creación de parcela
-let isCreatingParcela = false;
-
-// Al hacer clic en el botón, activar el modo de creación de parcela
-document.getElementById('create-parcela').addEventListener('click', () => {
-  isCreatingParcela = true;
-});
-
 let currentMarker = null;
+
+// El modo "crear parcelación" está activo mientras el modal esté visible.
+function parcelaModalAbierto() {
+  const m = document.getElementById('parcelacion-modal');
+  return m && !m.classList.contains('hidden');
+}
 
 // Detectar clic en el mapa para obtener las coordenadas
 map.on('click', (e) => {
-  if (isCreatingParcela) {
+  if (parcelaModalAbierto()) {
     const lat = e.lngLat.lat;
     const lng = e.lngLat.lng;
 
@@ -312,8 +310,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mostrar mensaje de cancelación
     window.notify('Parcelación cancelada.');
-
-    // Desactivar el modo de creación de parcela
-    isCreatingParcela = false;
   });
 });

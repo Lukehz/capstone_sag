@@ -66,12 +66,19 @@ const cancelDrawing = () => {
  };
 
  // Asignar el evento al botón para cancelar el dibujo en proceso
-document.getElementById('cancel-quarantine').addEventListener('click', cancelDrawing);
+document.getElementById('cancel-quarantine').addEventListener('click', () => {
+  cancelDrawing();
+  window.notify('Cuarentena cancelada.');
+});
 
 
 const saveQuarantine = async () => {
   const comment = getComment();
   const idSector = document.getElementById("SelectComuna").value; // Obtener el id_sector desde el dropdown
+  if (!idSector) {
+    window.notify('Debe seleccionar un sector.');
+    return;
+  }
   const activa = 1;
   const type = quarantineCircle ? 'radius' : 'polygon';
   let points = [];
@@ -191,10 +198,18 @@ function clearQuarantineForm() {
   }
   mostrarCampoRadio(false);
 
-  // Resetear el tipo de cuarentena al valor por defecto
+  // Resetear el tipo de cuarentena al valor por defecto y refrescar su dropdown
   const typeElement = document.getElementById('quarantine-type');
   if (typeElement) {
-    typeElement.value = ''; // O el valor por defecto que prefieras
+    typeElement.value = 'seleccionar';
+    if (window.enhanceSelect) window.enhanceSelect(typeElement);
+  }
+
+  // Resetear el sector y refrescar su dropdown (.ms) para que no quede el último elegido
+  const sectorElement = document.getElementById('SelectComuna');
+  if (sectorElement) {
+    sectorElement.value = '';
+    if (window.enhanceSelect) window.enhanceSelect(sectorElement);
   }
 
   // Limpiar variables globales
@@ -513,9 +528,9 @@ map.on('click', 'quarantine-points', (e) => {
 
 document.getElementById('quarantine-type').addEventListener('change', function(e) {
   
-  if (drawingMode) {
-    // Prevenir el cambio de opción
-    e.preventDefault();
+  // Solo bloquear el cambio si ya hay un dibujo en progreso (puntos o centro).
+  // Si aún no se dibujó nada, se permite cambiar de trazado a radio (y viceversa).
+  if (drawingMode && (quarantinePoints.length > 0 || quarantineCenter)) {
     
     // Restaurar el valor anterior del select
     this.value = this.dataset.lastValue || '';
@@ -523,8 +538,8 @@ document.getElementById('quarantine-type').addEventListener('change', function(e
     // Mostrar alerta al usuario
     window.notify('Por favor termine o cancele el dibujo actual antes de cambiar de opción.');
     
-    // Asegurarnos que el modo de dibujo sigue activo
-    drawingMode = true;
+    // Asegurarnos que el modo de dibujo sigue activo (con su tipo real)
+    drawingMode = this.value || drawingMode;
     
     // Mantener visible el campo de radio si estaba en ese modo
     if (this.value === 'radio') {

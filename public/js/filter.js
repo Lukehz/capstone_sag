@@ -29,20 +29,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Crear cuarentena
+  // Crear cuarentena (al volver a pulsar, si está abierto, se cancela)
   if (createQuarantine) {
     createQuarantine.addEventListener("click", (e) => {
       e.stopPropagation();
-      toggle(quarantinePanel, [filterPanel, parcelacionModal]);
+      const abierto = quarantinePanel && !quarantinePanel.classList.contains("hidden");
+      if (abierto) {
+        if (cancelQuarantine) cancelQuarantine.click(); else hide(quarantinePanel);
+      } else {
+        toggle(quarantinePanel, [filterPanel, parcelacionModal]);
+      }
     });
   }
   if (cancelQuarantine) cancelQuarantine.addEventListener("click", () => hide(quarantinePanel));
 
-  // Crear parcelación
+  // Crear parcelación (al volver a pulsar, si está abierto, se cancela)
   if (createParcela) {
     createParcela.addEventListener("click", (e) => {
       e.stopPropagation();
-      toggle(parcelacionModal, [filterPanel, quarantinePanel]);
+      const abierto = parcelacionModal && !parcelacionModal.classList.contains("hidden");
+      if (abierto) {
+        if (cancelParcela) cancelParcela.click(); else hide(parcelacionModal);
+      } else {
+        toggle(parcelacionModal, [filterPanel, quarantinePanel]);
+      }
     });
   }
   if (cancelParcela) cancelParcela.addEventListener("click", () => hide(parcelacionModal));

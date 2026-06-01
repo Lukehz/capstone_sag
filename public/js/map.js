@@ -30,17 +30,7 @@ map.addControl(directions, 'bottom-left');
 // Coordenadas para centrar el mapa (modifica según tus necesidades)
 const mainLocation = [-72.9369, -41.4717];
 
-// Función para centrar el mapa en las coordenadas principales
-document.getElementById('center-map').addEventListener('click', () => {
-  map.flyTo({
-    center: mainLocation,
-    essential: true, // Este parámetro asegura que el vuelo se reproduzca en un navegador móvil
-    zoom: 11, // Puedes ajustar el nivel de zoom que desees
-    speed: 1, // Velocidad de animación
-    curve: 1, // Curva de la animación
-    easing: (t) => t, // Easing de la animación
-  });
-});
+// (El botón "Centrar" ahora vive dentro del control de capas; ver BasemapSwitcher)
 
 // Función de geocodificación
 const coordinatesGeocoder = function (query) {
@@ -104,6 +94,21 @@ class BasemapSwitcher {
     const c = document.createElement('div');
     c.className = 'mapboxgl-ctrl basemap-switcher';
 
+    // Botón "Centrar" (a la izquierda del ícono de capas, misma altura)
+    const center = document.createElement('button');
+    center.type = 'button';
+    center.className = 'basemap-switcher__center';
+    center.title = 'Centrar mapa';
+    center.innerHTML = '<i class="fas fa-crosshairs"></i><span>Centrar</span>';
+    center.addEventListener('click', (e) => {
+      e.stopPropagation();
+      m.flyTo({ center: mainLocation, essential: true, zoom: 11, speed: 1, curve: 1, easing: (t) => t });
+    });
+
+    // Columna: panel (arriba) + ícono de capas (abajo)
+    const col = document.createElement('div');
+    col.className = 'basemap-switcher__col';
+
     // Panel con las opciones (se muestra al abrir)
     const panel = document.createElement('div');
     panel.className = 'basemap-switcher__panel';
@@ -136,8 +141,10 @@ class BasemapSwitcher {
     this._docClick = (ev) => { if (!c.contains(ev.target)) c.classList.remove('is-open'); };
     document.addEventListener('click', this._docClick);
 
-    c.appendChild(panel);
-    c.appendChild(toggle);
+    col.appendChild(panel);
+    col.appendChild(toggle);
+    c.appendChild(center);
+    c.appendChild(col);
     this._container = c;
     return c;
   }

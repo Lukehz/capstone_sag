@@ -187,7 +187,11 @@ app.get('/perfil/:userId', verificarAutenticacion(), (req, res) => {
 });
 
 // Middleware para servir archivos estáticos
-app.use(express.static(path.join(__dirname, '../public'), { maxAge: '1d', etag: true }));
+// Estáticos: en producción se cachean 1 día; en desarrollo no, para ver los cambios al instante.
+const _staticOpts = process.env.NODE_ENV === 'production'
+  ? { maxAge: '1d', etag: true }
+  : { maxAge: 0, etag: true };
+app.use(express.static(path.join(__dirname, '../public'), _staticOpts));
 
 // Ruta para servir login.html
 app.get('/login', (req, res) => {
