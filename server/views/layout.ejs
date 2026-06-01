@@ -6,17 +6,15 @@
     <link rel="icon" type="image/jpeg" href="/logo%20empresa.jpeg">
     <link rel="apple-touch-icon" href="/logo%20empresa.jpeg">
     <title><%= (typeof title !== 'undefined' && title) ? (title + ' · LandMosaic') : 'LandMosaic Vision' %></title>
-    <!-- Tailwind (utilidades) para el resto de las vistas -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
-    <!-- Mapbox -->
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.css">
+    <!-- Tailwind: solo las clases usadas (generar con `npm run build:css`) -->
+    <link rel="stylesheet" href="/tailwind/output.css">
+    <!-- (Mapbox CSS se carga solo en la página del mapa) -->
     <!-- Token público de Mapbox inyectado por el servidor (se define en .env como MAPBOX_TOKEN) -->
     <script>window.MAPBOX_TOKEN = '<%= typeof mapboxToken !== "undefined" ? mapboxToken : "" %>';</script>
     <!-- Fuente DM Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Iconos -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"/>
     <!-- Sistema de diseño propio -->
@@ -43,8 +41,7 @@
 </head>
 <body class="flex h-screen overflow-hidden" x-data="{ open: false, infoOpen: false }">
 
-    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.js"></script>
-    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css" type="text/css">
+    <!-- (Mapbox GL, Directions y Geocoder se cargan solo en la página del mapa) -->
 
     <!-- Sidebar -->
     <aside class="app-sidebar" :class="{ 'open': open }">
@@ -125,9 +122,6 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@2.8.2/dist/alpine.min.js" defer></script>
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
-    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
-    <script type="module" src="js/filter.js"></script>
     <script>
         const logoutLink = document.getElementById('logout');
         if (logoutLink) {
@@ -145,11 +139,6 @@
                     alert('No se pudo cerrar la sesión. Intenta nuevamente.');
                 }
             });
-        }
-    </script>
-    <script>
-        if (typeof map !== 'undefined') {
-            map.addControl(new MapboxDirections({ accessToken: mapboxgl.accessToken }), 'top-left');
         }
     </script>
     <script>

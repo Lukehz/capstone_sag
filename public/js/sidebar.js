@@ -204,8 +204,7 @@ async function mostrarRuta(destLat, destLng) {
   }
 }
 
-// Cargar las parcelas al iniciar la página
-obtenerParcelas();
+// (Las parcelas ya se cargan en el DOMContentLoaded del inicio del archivo)
 
 
 

@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
@@ -31,6 +32,7 @@ const dashboardRoutes = require('./Routes/dashboardRoutes'); // Datos del dashbo
 const app = express();
 
 // Middleware
+app.use(compression()); // Comprime las respuestas (HTML/CSS/JS) -> menos bytes
 app.use(cors()); // Habilitar CORS
 app.use(bodyParser.json()); // Parsear JSON
 app.use(express.json());
@@ -185,7 +187,7 @@ app.get('/perfil/:userId', verificarAutenticacion(), (req, res) => {
 });
 
 // Middleware para servir archivos estáticos
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public'), { maxAge: '1d', etag: true }));
 
 // Ruta para servir login.html
 app.get('/login', (req, res) => {

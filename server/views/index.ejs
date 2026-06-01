@@ -1,4 +1,8 @@
 <!-- ===================== Página del mapa ===================== -->
+<!-- CSS de Mapbox (solo se carga en esta página) -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css" rel="stylesheet">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.css">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css">
 <div class="map-page">
 
   <!-- Mapa -->
@@ -247,10 +251,11 @@
 
 </div>
 
-<!-- Scripts del mapa -->
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
-<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
-<script src="/js/multiselect.js"></script>
+<!-- Scripts del mapa (solo en esta página, con defer para no bloquear el render) -->
+<script defer src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
+<script defer src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.js"></script>
+<script defer src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
+<script defer src="/js/multiselect.js"></script>
 <script type="module" src="js/map.js"></script>
 <script type="module" src="/js/quarantine.js"></script>
 <script type="module" src="js/parcelas.js"></script>
