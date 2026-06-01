@@ -59,6 +59,9 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('layout', 'layout');
 app.use(expressLayouts);
 
+// Token público de Mapbox disponible en todas las vistas (se inyecta en layout.ejs)
+app.locals.mapboxToken = process.env.MAPBOX_TOKEN || '';
+
 
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));

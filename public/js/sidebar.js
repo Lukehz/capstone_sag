@@ -160,7 +160,7 @@ async function mostrarRuta(destLat, destLng) {
         const selectedMode = modes[1]; // Cambia el índice según el modo seleccionado por el usuario
 
         const response = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/${selectedMode}/${origen.join(',')};${destino.join(',')}?geometries=geojson&access_token=pk.eyJ1Ijoibmljb2xlODAxIiwiYSI6ImNtMHdvdGE3MzAzbnQybG93aXRncnlqb2QifQ.9G8XyYyv4V1b0OJGRnpEZA`
+          `https://api.mapbox.com/directions/v5/mapbox/${selectedMode}/${origen.join(',')};${destino.join(',')}?geometries=geojson&access_token=${window.MAPBOX_TOKEN}`
         );
         if (!response.ok) {
           throw new Error('Error al obtener datos de dirección');
