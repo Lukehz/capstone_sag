@@ -21,6 +21,8 @@ function slug(s) {
 const APARTADOS_OCULTOS = ['historial'];
 // Apartados de solo lectura: en la matriz muestran solo "Sin acceso / Ver".
 const APARTADOS_SOLO_LECTURA = ['bitacora'];
+// Apartados obligatorios: siempre "Ver" (no se puede quitar el acceso).
+const APARTADOS_OBLIGATORIOS = ['mapa'];
 
 // Catálogos para construir la matriz en el cliente.
 async function catalogos(req, res) {
@@ -31,7 +33,10 @@ async function catalogos(req, res) {
       (ocultos ? ` WHERE codigo NOT IN (${ocultos})` : '') +
       ` ORDER BY orden, nombre`
     );
-    apartados.forEach((a) => { a.solo_lectura = APARTADOS_SOLO_LECTURA.includes(a.codigo) ? 1 : 0; });
+    apartados.forEach((a) => {
+      a.solo_lectura = APARTADOS_SOLO_LECTURA.includes(a.codigo) ? 1 : 0;
+      a.obligatorio = APARTADOS_OBLIGATORIOS.includes(a.codigo) ? 1 : 0;
+    });
     const niveles = await query('SELECT codigo, nombre, descripcion FROM nivel_acceso ORDER BY id_nivel');
     const capacidades = await query('SELECT codigo, nombre FROM capacidad ORDER BY codigo');
     res.json({ apartados, niveles, capacidades });

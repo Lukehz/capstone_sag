@@ -48,9 +48,19 @@
       row.appendChild(name);
       const seg = document.createElement('div');
       seg.className = 'roles-seg';
-      const niveles = ap.solo_lectura ? ['N', 'L'] : ['N', 'L', 'A'];
-      const cur2 = (ap.solo_lectura && cur === 'A') ? 'L' : cur;
-      if (ap.solo_lectura) seg.classList.add('roles-seg--ro');
+      let niveles, cur2;
+      if (ap.obligatorio) {            // siempre "Ver", sin opción a quitar
+        niveles = ['L'];
+        cur2 = 'L';
+        seg.classList.add('roles-seg--ro');
+      } else if (ap.solo_lectura) {    // solo "Sin acceso" / "Ver"
+        niveles = ['N', 'L'];
+        cur2 = (cur === 'A') ? 'L' : cur;
+        seg.classList.add('roles-seg--ro');
+      } else {                         // completo
+        niveles = ['N', 'L', 'A'];
+        cur2 = cur;
+      }
       niveles.forEach((niv) => {
         const b = document.createElement('button');
         b.type = 'button';

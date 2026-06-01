@@ -326,7 +326,7 @@ aside.app-sidebar {
 
 /* ===================== Leyenda ===================== */
 .legend {
-  bottom: 16px; left: 16px;
+  bottom: 40px; left: 16px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-md); box-shadow: var(--shadow-md);
   padding: 11px 13px; font-size: 12px;
@@ -341,7 +341,7 @@ aside.app-sidebar {
 .swatch--inactiva { background: #e1e5e3; border: 2px dashed #8a938f; }
 
 /* ===================== Centrar mapa ===================== */
-.center-btn { bottom: 16px; right: 16px; }
+.center-btn { bottom: 16px; right: 62px; }
 
 /* ===================== Modal (crear parcelación) ===================== */
 .modal {
