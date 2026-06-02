@@ -1408,16 +1408,16 @@ function initializeQuarantineState() {
     Select.value = 'seleccionar';
   }
 
-  // Resetear toggles
+  // Mantener visibles las capas de cuarentena por defecto (toggles de visibilidad)
   const radiusToggle = document.getElementById('quarantine-circle-toggle');
   const polygonToggle = document.getElementById('quarantine-toggle');
   
   if (radiusToggle) {
-    radiusToggle.checked = false;
+    radiusToggle.checked = true;
   }
   
   if (polygonToggle) {
-    polygonToggle.checked = false;
+    polygonToggle.checked = true;
   }
 
   // Limpiar capas del mapa

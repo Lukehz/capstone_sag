@@ -23,7 +23,7 @@ const GRUPOS = {
   'crud.bundle.js':      ['estados.js', 'script.js', 'multiselect.js'],
   'dashboard.bundle.js': ['estados.js', 'dashboard.js', 'reportes.js'],
   'roles.bundle.js':     ['estados.js', 'roles.js'],
-  'bitacora.bundle.js':  ['estados.js', 'bitacora.js'],
+  'bitacora.bundle.js':  ['estados.js', 'multiselect.js', 'bitacora.js'],
 };
 
 // Módulos ES del mapa (se resuelven los import entre sí; map.js queda incluido una vez).

@@ -22,7 +22,7 @@
     if (ms._flotante) {
       const p = ms._panel;
       p.style.position = ''; p.style.left = ''; p.style.top = '';
-      p.style.width = ''; p.style.right = ''; p.style.zIndex = '';
+      p.style.width = ''; p.style.minWidth = ''; p.style.maxWidth = ''; p.style.right = ''; p.style.zIndex = '';
       window.removeEventListener('scroll', ms._onScroll, true);
       window.removeEventListener('resize', ms._onScroll);
       ms._flotante = false;
@@ -35,11 +35,22 @@
     const r = ms._btn.getBoundingClientRect();
     const p = ms._panel;
     p.style.position = 'fixed';
-    p.style.left = r.left + 'px';
     p.style.top = (r.bottom + 6) + 'px';
-    p.style.width = r.width + 'px';
     p.style.right = 'auto';
     p.style.zIndex = '2000';
+    // El panel se ajusta al contenido (para que el texto se vea completo),
+    // pero al menos tan ancho como el botón y sin pasar de 90vw.
+    p.style.minWidth = r.width + 'px';
+    p.style.width = 'max-content';
+    p.style.maxWidth = '90vw';
+    // Calcular 'left' evitando que se salga por el borde derecho.
+    p.style.left = r.left + 'px';
+    const pw = p.offsetWidth;
+    let left = r.left;
+    if (left + pw > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - pw - 8);
+    }
+    p.style.left = left + 'px';
     ms._flotante = true;
   }
 
