@@ -1,4 +1,6 @@
 const { sql, query } = require('../../config/db'); // Importa la funciónes pra consultas y sql para trabar con SQL Server
+const { registrarAuditoria } = require('../../utils/auditoria');
+const { describirCuarentena } = require('../../utils/auditDescripcion');
 
 /************************   
 ***** CUARENTENA ******
@@ -24,6 +26,7 @@ const createCuarentena = async (req, res) => {
     console.log('fuera de la condicion', req.body);
     const sqlQuery = `
         INSERT INTO cuarentena (latitud, longitud, radio, id_sector, comentario, activa) 
+        OUTPUT INSERTED.id_cuarentena
         VALUES (@latitud, @longitud, @radio, @id_sector, @comentario, @activa)
     `;
 
@@ -39,6 +42,11 @@ const createCuarentena = async (req, res) => {
         ]);
 
         // Responder con el resultado de la inserción y código 201 (creado)
+        const nuevoId = (result && result[0]) ? result[0].id_cuarentena : null;
+        await registrarAuditoria(req, {
+          entidad: 'cuarentena', accion: 'crear', idEntidad: nuevoId,
+          detalle: await describirCuarentena(nuevoId)
+        });
         res.status(201).json(result);
     } catch (error) {
         console.error('Error al crear ítem:', error.message);
@@ -105,6 +113,7 @@ const radioValue = (radio === 'null' || radio === '') ? null : Number(radio);
             { name: 'id', type: sql.Int, value: id }
         ]);
 
+        await registrarAuditoria(req, { entidad: 'cuarentena', accion: 'editar', idEntidad: id, detalle: await describirCuarentena(id) });
         res.sendStatus(204); // Responder con código 204 (sin contenido) si la actualización fue exitosa
     } catch (error) {
         console.error('Error al actualizar ítem:', error.message); // Log del error
@@ -118,10 +127,13 @@ const deleteCuarentena = async (req, res) => {
     const sqlQuery = 'DELETE FROM cuarentena WHERE id_cuarentena = @id'; 
 
     try {
+        // Descripción para la auditoría (antes de borrar la fila).
+        const detalle = await describirCuarentena(id);
         // Ejecutar la consulta de eliminación con el ID proporcionado
         await query(sqlQuery, [
             { name: 'id', type: sql.Int, value: id } // Parámetro para la consulta
         ]);
+        await registrarAuditoria(req, { entidad: 'cuarentena', accion: 'eliminar', idEntidad: id, detalle });
         res.sendStatus(204); // Responder con código 204 (sin contenido) si la eliminación fue exitosa
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -134,7 +134,8 @@ class BasemapSwitcher {
     toggle.type = 'button';
     toggle.className = 'basemap-switcher__toggle';
     toggle.title = 'Cambiar mapa';
-    toggle.innerHTML = '<i class="fas fa-layer-group"></i>';
+    toggle.setAttribute('aria-label', 'Cambiar tipo de mapa');
+    toggle.innerHTML = '<i class="fas fa-layer-group" aria-hidden="true"></i>';
     toggle.addEventListener('click', (e) => { e.stopPropagation(); c.classList.toggle('is-open'); });
 
     // Cerrar al hacer clic fuera del control

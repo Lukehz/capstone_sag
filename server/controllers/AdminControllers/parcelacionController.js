@@ -1,4 +1,6 @@
 const { sql, query } = require('../../config/db'); // Importa la funciónes pra consultas y sql para trabar con SQL Server
+const { registrarAuditoria } = require('../../utils/auditoria');
+const { describirParcela } = require('../../utils/auditDescripcion');
 
 /************************   
 ***** PARCELACION******
@@ -55,7 +57,8 @@ const createParcelacion = async (req, res) => {
 
     const sqlQuery = `
         INSERT INTO parcelacion (latitud, longitud, imagen, id_sector, id_fase, id_cultivo, registrada) 
-        VALUES (@latitud, @longitud, @image_data, @id_sector, @id_fase, @id_cultivo, @registrada)
+        VALUES (@latitud, @longitud, @image_data, @id_sector, @id_fase, @id_cultivo, @registrada);
+        SELECT CAST(SCOPE_IDENTITY() AS INT) AS id_parcelacion;
     `;
 
     // Convertir el buffer de la imagen a un formato adecuado, si es que se ha subido una imagen
@@ -74,6 +77,11 @@ const createParcelacion = async (req, res) => {
         ]);
 
         // Responder con el resultado de la inserción y código 201 (creado)
+        const nuevoId = (result && result[0]) ? result[0].id_parcelacion : null;
+        await registrarAuditoria(req, {
+          entidad: 'parcelacion', accion: 'crear', idEntidad: nuevoId,
+          detalle: await describirParcela(nuevoId)
+        });
         res.status(201).json(result);
     } catch (error) {
         console.error('Error al crear ítem:', error.message);
@@ -163,6 +171,10 @@ const updateParcelacion = async (req, res) => {
         // Ejecutar la consulta
         await query(sqlQuery, queryParams);
 
+        await registrarAuditoria(req, {
+          entidad: 'parcelacion', accion: 'editar', idEntidad: id,
+          detalle: await describirParcela(id)
+        });
         res.sendStatus(204); // Responder con código 204 (sin contenido) si la actualización fue exitosa
     } catch (error) {
         console.error('Error al actualizar ítem:', error.message); // Log del error
@@ -177,10 +189,13 @@ const deleteParcelacion = async (req, res) => {
     const sqlQuery = 'DELETE FROM parcelacion WHERE id_parcelacion = @id'; 
 
     try {
+        // Descripción para la auditoría (antes de borrar la fila).
+        const detalle = await describirParcela(id);
         // Ejecutar la consulta de eliminación con el ID proporcionado
         await query(sqlQuery, [
             { name: 'id', type: sql.Int, value: id } // Parámetro para la consulta
         ]);
+        await registrarAuditoria(req, { entidad: 'parcelacion', accion: 'eliminar', idEntidad: id, detalle });
         res.sendStatus(204); // Responder con código 204 (sin contenido) si la eliminación fue exitosa
     } catch (error) {
         res.status(500).json({ error: error.message });

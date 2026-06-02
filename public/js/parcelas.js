@@ -5,6 +5,7 @@ let parcelaMarkers = [];
 /* */ 
 
 const updateParcelas = () => {
+  if (window.MapLoad) MapLoad.begin();
   fetch('/parcelas')
     .then(response => {
       if (!response.ok) {
@@ -20,6 +21,7 @@ const updateParcelas = () => {
       // Limpiar marcadores existentes
       parcelaMarkers.forEach(marker => marker.remove());
       parcelaMarkers = [];
+      window.__PARCELAS = []; // lista compartida para el análisis de impacto
 
       const bounds = new mapboxgl.LngLatBounds();
       parcelas.forEach(parcela => {
@@ -62,11 +64,13 @@ const updateParcelas = () => {
     }
   });
           parcelaMarkers.push(marker); // Agregar el marcador al array
+          window.__PARCELAS.push({ id: parcela.ID, lng, lat, el: _el, cultivo: parcela.Cultivo, comuna: parcela.Comuna });
           bounds.extend([parcela.longitud, parcela.latitud]); // Ajustar los límites del mapa
         }
       });
     })
-    .catch(error => console.error('Error al obtener parcelas:', error));
+    .then(() => { if (window.MapLoad) MapLoad.done(); })
+    .catch(error => { console.error('Error al obtener parcelas:', error); if (window.MapLoad) MapLoad.fail(); });
 };
 
 // Función para alternar la visibilidad de las parcelas
@@ -88,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Activado por defecto al ingresar a la página
   parcelaCheckbox.checked = true;
   parcelaCheckbox.addEventListener('change', toggleParcelas); // Agregar evento al checkbox
+  // Permitir que el botón "Reintentar" del mapa recargue las parcelas.
+  if (window.MapLoad) MapLoad.register(updateParcelas);
   // Mostrar las parcelas apenas el mapa esté listo
   if (parcelaCheckbox.checked) {
     if (map.loaded()) updateParcelas();

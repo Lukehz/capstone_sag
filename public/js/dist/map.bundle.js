@@ -1,4 +1,167 @@
-import { map } from './map.js';
+mapboxgl.accessToken = window.MAPBOX_TOKEN || '';
+
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/satellite-streets-v12',
+  center: [-72.9369, -41.4717], // Coordenadas iniciales
+  zoom: 11,
+  maxZoom: 20,
+  minZoom: 1,
+  fitBoundsOptions: null,
+});
+
+const directions = new MapboxDirections({
+  accessToken: mapboxgl.accessToken,
+  language: 'es',
+  controls: {
+    inputs: false
+  },
+  interactive: false, // Desactiva la selección interactiva del punto B
+  
+});
+
+
+
+map.addControl(directions, 'bottom-left');
+
+
+
+
+// Coordenadas para centrar el mapa (modifica según tus necesidades)
+const mainLocation = [-72.9369, -41.4717];
+
+// (El botón "Centrar" ahora vive dentro del control de capas; ver BasemapSwitcher)
+
+// Función de geocodificación
+const coordinatesGeocoder = function (query) {
+  const matches = query.match(/^(-?\d+\.?\d*)[, ]+(-?\d+\.?\d*)$/);
+  if (!matches) return null;
+
+  function coordinateFeature(lng, lat) {
+    return {
+      center: [lng, lat],
+      geometry: {
+        type: 'Point',
+        coordinates: [lng, lat],
+      },
+      place_name: `Lat: ${lat} Lng: ${lng}`,
+      place_type: ['coordinate'],
+      properties: {},
+      type: 'Feature',
+    };
+  }
+  const coord1 = Number(matches[1]);
+  const coord2 = Number(matches[2]);
+  const geocodes = [];
+
+  if (Math.abs(coord1) <= 90 && Math.abs(coord2) <= 180) {
+    geocodes.push(coordinateFeature(coord2, coord1));
+  }
+
+  if (Math.abs(coord1) <= 180 && Math.abs(coord2) <= 90) {
+    geocodes.push(coordinateFeature(coord1, coord2));
+  }
+
+  return geocodes;
+};
+
+// Configuración del control del buscador
+const geocoder = new MapboxGeocoder({
+  accessToken: mapboxgl.accessToken,
+  localGeocoder: coordinatesGeocoder, // Habilita búsqueda de coordenadas
+  placeholder: 'Ingrese coordenadas o lugar', // Cambia el texto del placeholder
+  mapboxgl: mapboxgl, // Necesario para la integración
+  reverseGeocode: true, // Habilita búsqueda inversa (lat/lng)
+});
+
+// Asigna el buscador al contenedor específico
+document.getElementById('map-search').appendChild(geocoder.onAdd(map));
+
+
+// ===== Selector de mapa base (botón colapsable, abajo a la derecha) =====
+const BASEMAPS = [
+  { id: 'satellite-streets-v12', label: 'Satélite', icon: 'fa-satellite' },
+  { id: 'streets-v12',           label: 'Calles',   icon: 'fa-road' },
+  { id: 'outdoors-v12',          label: 'Terreno',  icon: 'fa-mountain' },
+];
+let basemapActual = 'satellite-streets-v12';
+let primeraCargaEstilo = true;
+
+class BasemapSwitcher {
+  onAdd(m) {
+    this._map = m;
+    const c = document.createElement('div');
+    c.className = 'mapboxgl-ctrl basemap-switcher';
+
+    // Botón "Centrar" (a la izquierda del ícono de capas, misma altura)
+    const center = document.createElement('button');
+    center.type = 'button';
+    center.className = 'basemap-switcher__center';
+    center.title = 'Centrar mapa';
+    center.innerHTML = '<i class="fas fa-crosshairs"></i><span>Centrar</span>';
+    center.addEventListener('click', (e) => {
+      e.stopPropagation();
+      m.flyTo({ center: mainLocation, essential: true, zoom: 11, speed: 1, curve: 1, easing: (t) => t });
+    });
+
+    // Columna: panel (arriba) + ícono de capas (abajo)
+    const col = document.createElement('div');
+    col.className = 'basemap-switcher__col';
+
+    // Panel con las opciones (se muestra al abrir)
+    const panel = document.createElement('div');
+    panel.className = 'basemap-switcher__panel';
+    BASEMAPS.forEach(b => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.style = b.id;
+      btn.className = 'basemap-switcher__btn' + (b.id === basemapActual ? ' is-active' : '');
+      btn.innerHTML = `<i class="fas ${b.icon}"></i><span class="basemap-switcher__label">${b.label}</span>`;
+      btn.addEventListener('click', () => {
+        c.classList.remove('is-open');
+        if (b.id === basemapActual) return;
+        basemapActual = b.id;
+        panel.querySelectorAll('.basemap-switcher__btn').forEach(x =>
+          x.classList.toggle('is-active', x.dataset.style === b.id));
+        m.setStyle('mapbox://styles/mapbox/' + b.id);
+      });
+      panel.appendChild(btn);
+    });
+
+    // Botón con ícono de capas que abre/cierra el panel
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'basemap-switcher__toggle';
+    toggle.title = 'Cambiar mapa';
+    toggle.setAttribute('aria-label', 'Cambiar tipo de mapa');
+    toggle.innerHTML = '<i class="fas fa-layer-group" aria-hidden="true"></i>';
+    toggle.addEventListener('click', (e) => { e.stopPropagation(); c.classList.toggle('is-open'); });
+
+    // Cerrar al hacer clic fuera del control
+    this._docClick = (ev) => { if (!c.contains(ev.target)) c.classList.remove('is-open'); };
+    document.addEventListener('click', this._docClick);
+
+    col.appendChild(panel);
+    col.appendChild(toggle);
+    c.appendChild(center);
+    c.appendChild(col);
+    this._container = c;
+    return c;
+  }
+  onRemove() {
+    document.removeEventListener('click', this._docClick);
+    this._container.parentNode.removeChild(this._container);
+  }
+}
+
+map.addControl(new BasemapSwitcher(), 'bottom-right');
+
+// setStyle borra las capas personalizadas; al cargar el nuevo estilo avisamos
+// para volver a dibujarlas. La PRIMERA carga la maneja el flujo normal de la app.
+map.on('style.load', () => {
+  if (primeraCargaEstilo) { primeraCargaEstilo = false; return; }
+  window.dispatchEvent(new Event('basemap:loaded'));
+});
 
 // Cablea el botón "Resaltar parcelas" de un popup de cuarentena: alterna el
 // resaltado de las parcelas que caen dentro de la zona (análisis de impacto).
@@ -24,7 +187,6 @@ let drawingMode = false;
 let quarantinePoints = [];
 let quarantineCircle = null;
 let quarantineCenter = null;
-let isDeleting = false;
 let currentPopup = null; // Variable para almacenar el popup actual
 let trazadoCerrado = false;   // true cuando el polígono ya fue cerrado por el usuario
 let trazadoRafId = null;      // id del requestAnimationFrame de la animación del trazado
@@ -330,45 +492,6 @@ const updateQuarantinePolygon = () => {
   }
 };
 
-function createQuarantineByPolygon() {
-  if (quarantinePoints.length < 3) {
-    window.notify("Por favor, dibuje al menos 3 puntos para crear un polígono.");
-    return;
-  }
-
-  updateQuarantinePolygon();
-
-  const quarantineData = {
-    type: 'polygon',
-    points: quarantinePoints.map(point => point.coords),
-    comment: getComment(),
-  };
-  
-  /// saveQuarantine(quarantineData);
-}
-
-function createQuarantineByRadius() {
-  if (!quarantineCenter) {
-    window.notify("Por favor, seleccione un centro para la cuarentena por radio.");
-    return;
-  }
-
-  const radius = parseFloat(document.getElementById('quarantine-radius').value);
-  if (isNaN(radius) || radius <= 0) {
-    window.notify("Por favor, especifique un radio válido para la cuarentena.");
-    return;
-  }
-
-  const quarantineData = {
-    type: 'radius',
-    points: [quarantineCenter],
-    comentario: getComment(),
-    radius: radius,
-  };
-
-  saveQuarantine(quarantineData);
-}
-
 // Asegúrate de que esta función esté definida correctamente
 function generateCircle(center, radius) {
   const points = 64;
@@ -541,7 +664,7 @@ function updateQuarantineCircle() {
 // Manejadores de eventos de clic en el mapa
 map.on('click', 'quarantine-points', (e) => {
   const feature = e.features[0];
-  const coordinates = feature.geometry.coordinates.slice();
+  feature.geometry.coordinates.slice();
 
   
 }); 
@@ -571,7 +694,7 @@ document.getElementById('quarantine-type').addEventListener('change', function(e
 
   this.dataset.lastValue = this.value;
   
-  const radiusInput = document.getElementById('quarantine-radius');
+  document.getElementById('quarantine-radius');
  
 
  
@@ -1094,7 +1217,7 @@ function updateInactiveQuarantinePolygons(features, type) {
   
     // Agregar información del radio solo si es una cuarentena de tipo radio
     if (type === 'radio') {
-      contentHTML += `<div class="lm-popup__row"><span><i class="fas fa-ruler-combined"></i> Radio</span><b>${properties.radio} m</b></div>`
+      contentHTML += `<div class="lm-popup__row"><span><i class="fas fa-ruler-combined"></i> Radio</span><b>${properties.radio} m</b></div>`;
     }
   
     contentHTML += `
@@ -1253,31 +1376,6 @@ function fetchInactiveTrazadoQuarantines() {
       window.notify('Hubo un error al obtener las cuarentenas inactivas por trazado');
     });
 }
-// Función auxiliar para activar un toggle y actualizar la visualización
-function activateToggle(type) {
-  const radiusToggle = document.getElementById('quarantine-circle-toggle');
-  const polygonToggle = document.getElementById('quarantine-toggle');
-  
-  cancelDrawing();
-
-  if (type === 'radio') {
-    if (radiusToggle) {
-      radiusToggle.checked = true;
-      if (polygonToggle) {
-        polygonToggle.checked = false;
-      }
-      toggleQuarantineCircle();
-    }
-  } else {
-    if (polygonToggle) {
-      polygonToggle.checked = true;
-      if (radiusToggle) {
-        radiusToggle.checked = false;
-      }
-      toggleQuarantines();
-    }
-  }
-}
 
 // Nueva función de inicialización
 function initializeQuarantineState() {
@@ -1286,7 +1384,6 @@ function initializeQuarantineState() {
   quarantinePoints = [];
   quarantineCircle = null;
   quarantineCenter = null;
-  isDeleting = false;
   currentPopup = null;
 
   // Resetear formularios
@@ -1397,8 +1494,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const _qtype = document.getElementById('quarantine-type');
   if (_qtype && window.enhanceSelect) window.enhanceSelect(_qtype);
 });
-
-export { quarantinePoints, saveQuarantine, startDrawing, endDrawing, initializeQuarantineState};
 // ===========================================================================
 //  Experiencia de trazado: animación, ayuda y controles (diseño mejorado)
 // ===========================================================================
@@ -1795,9 +1890,8 @@ habilitarHoverCuarentena('quarantine-circle-layer', 'quarantine-circle-source');
 // Animación ambiente: el halo de las activas "respira" lentamente.
 // Umbral: si hay muchas activas en pantalla, se apaga sola para no pesar.
 const Q_AMBIENT_MAX = 40;
-let qPulseRaf = null;
 function qPulseLoop(ts) {
-  qPulseRaf = requestAnimationFrame(qPulseLoop);
+  requestAnimationFrame(qPulseLoop);
   const total = (qCounts.radio || 0) + (qCounts.trazado || 0);
   const activo = total > 0 && total <= Q_AMBIENT_MAX;
   const k = (ts % 2200) / 2200;             // 0..1 repetido (~2.2 s)
@@ -1820,7 +1914,7 @@ function qPulseLoop(ts) {
     } catch (e) {}
   }
 }
-qPulseRaf = requestAnimationFrame(qPulseLoop);
+requestAnimationFrame(qPulseLoop);
 
 // Al cambiar el mapa base (map.js dispara 'basemap:loaded'), re-dibujar las
 // cuarentenas activas/inactivas según los toggles (setStyle borró sus capas).
@@ -1929,3 +2023,1089 @@ function moverAActivada(id) {
   }
   return true;
 }
+
+let parcelaMarkers = [];
+
+/* */ 
+
+const updateParcelas = () => {
+  if (window.MapLoad) MapLoad.begin();
+  fetch('/parcelas')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Error HTTP! estado: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(parcelas => {
+      if (!parcelas.length) {
+        return;
+      }
+
+      // Limpiar marcadores existentes
+      parcelaMarkers.forEach(marker => marker.remove());
+      parcelaMarkers = [];
+      window.__PARCELAS = []; // lista compartida para el análisis de impacto
+
+      const bounds = new mapboxgl.LngLatBounds();
+      parcelas.forEach(parcela => {
+        const lat = parcela.latitud;
+        const lng = parcela.longitud;
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          const _esReg = parcela.Registrada === 'Registrada';
+          const _el = document.createElement('div');
+          _el.className = 'parcela-marker ' + (_esReg ? 'is-ok' : 'is-warn');
+          _el.innerHTML = '<span class="parcela-marker__ring"></span><span class="parcela-marker__pin"><i class="fas fa-seedling"></i></span>';
+          const marker = new mapboxgl.Marker({ element: _el, anchor: 'bottom' })
+          .setLngLat([parcela.longitud, parcela.latitud])
+          .setPopup(new mapboxgl.Popup({ offset: 18, maxWidth: '260px' }).setHTML(`
+            <div class="lm-popup">
+              <div class="lm-popup__head">
+                <span class="lm-popup__title"><i class="fas fa-seedling"></i> Parcela #${parcela.ID}</span>
+                <span class="lm-popup__badge ${parcela.Registrada === 'Registrada' ? 'is-ok' : 'is-warn'}">${parcela.Registrada}</span>
+              </div>
+              <div class="lm-popup__body">
+                <div class="lm-popup__row"><span><i class="fas fa-layer-group"></i> Fase</span><b>${parcela.Fase}</b></div>
+                <div class="lm-popup__row"><span><i class="fas fa-leaf"></i> Cultivo</span><b>${parcela.Cultivo}</b></div>
+                <div class="lm-popup__row"><span><i class="fas fa-map-marker-alt"></i> Comuna</span><b>${parcela.Comuna}</b></div>
+                <div class="lm-popup__row"><span><i class="fas fa-location-arrow"></i> Coords</span><b>${Number(parcela.latitud).toFixed(5)}, ${Number(parcela.longitud).toFixed(5)}</b></div>
+              </div>
+              <div class="lm-popup__actions">
+                ${(window.Perm && window.Perm.tieneCapacidad('parcelacion.eliminar')) ? '<button id="delete-btn-'+parcela.ID+'" class="close-btn lm-popup__btn lm-popup__btn--danger"><i class="fas fa-trash"></i> Eliminar</button>' : ''}
+              </div>
+            </div>
+          `))
+          .addTo(map);
+          
+          // Agregar event listener cuando el popup se abra
+  marker.getPopup().on('open', () => {
+    const deleteButton = document.getElementById(`delete-btn-${parcela.ID}`);
+    if (deleteButton) {
+      deleteButton.addEventListener('click', function() {
+        eliminarParcela(parcela.ID, deleteButton);
+        updateParcelas();
+      });
+    }
+  });
+          parcelaMarkers.push(marker); // Agregar el marcador al array
+          window.__PARCELAS.push({ id: parcela.ID, lng, lat, el: _el, cultivo: parcela.Cultivo, comuna: parcela.Comuna });
+          bounds.extend([parcela.longitud, parcela.latitud]); // Ajustar los límites del mapa
+        }
+      });
+    })
+    .then(() => { if (window.MapLoad) MapLoad.done(); })
+    .catch(error => { console.error('Error al obtener parcelas:', error); if (window.MapLoad) MapLoad.fail(); });
+};
+
+// Función para alternar la visibilidad de las parcelas
+function toggleParcelas() {
+  const isVisible = this.checked; // Obtener estado del checkbox
+  
+  if (isVisible) {
+    updateParcelas(); // Actualizar y mostrar parcelas si está marcado
+  } else {
+    // Si no está marcado, eliminar todos los marcadores
+    parcelaMarkers.forEach(marker => marker.remove());
+    parcelaMarkers = [];
+  }
+}
+
+// Evento de carga de DOM
+document.addEventListener('DOMContentLoaded', () => {
+  const parcelaCheckbox = document.getElementById('parcela-toggle');
+  // Activado por defecto al ingresar a la página
+  parcelaCheckbox.checked = true;
+  parcelaCheckbox.addEventListener('change', toggleParcelas); // Agregar evento al checkbox
+  // Permitir que el botón "Reintentar" del mapa recargue las parcelas.
+  if (window.MapLoad) MapLoad.register(updateParcelas);
+  // Mostrar las parcelas apenas el mapa esté listo
+  if (parcelaCheckbox.checked) {
+    if (map.loaded()) updateParcelas();
+    else map.on('load', () => updateParcelas());
+  }
+});
+
+// Mapa para almacenar los marcadores por ID de parcela
+const markerMap = new Map();
+
+function eliminarParcela(idParcela, boton) {
+  fetch(`/parcelas/delete-parcela/${idParcela}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+    .then(response => {
+      if (response.ok) {
+        window.notify("Parcela eliminada correctamente.");
+        boton.parentElement.style.display = 'none'; // Oculta el recuadro del mapa
+
+        updateParcelas(); 
+
+        // Eliminar el marcador del mapa si existe
+        const marker = markerMap.get(idParcela);
+        if (marker) {
+          marker.remove(); // Elimina el marcador del mapa
+          markerMap.delete(idParcela); // Limpia la referencia en el mapa
+        }
+      } else {
+        // Captura el error del backend y muéstralo en la consola
+        return response.text().then(text => { throw new Error(text); });
+      }
+    })
+    .catch(error => {
+      console.error("Error al eliminar la parcela:", error.message); // Mostrar el error detallado
+      window.notify("No se pudo eliminar la parcela. Intenta nuevamente.");
+    });
+}
+
+let currentMarker = null;
+
+// El modo "crear parcelación" está activo mientras el modal esté visible.
+function parcelaModalAbierto() {
+  const m = document.getElementById('parcelacion-modal');
+  return m && !m.classList.contains('hidden');
+}
+
+// Detectar clic en el mapa para obtener las coordenadas
+map.on('click', (e) => {
+  if (parcelaModalAbierto()) {
+    const lat = e.lngLat.lat;
+    const lng = e.lngLat.lng;
+
+    // Rellenar los campos de latitud y longitud
+    document.getElementById('latitud').value = lat;
+    document.getElementById('longitud').value = lng;
+
+    // Si ya existe un marcador previo, eliminarlo
+    if (currentMarker) {
+      currentMarker.remove();
+    }
+
+    // Agregar un nuevo marcador al mapa
+    currentMarker = new mapboxgl.Marker()
+      .setLngLat([lng, lat]) // Coordenadas del clic
+      .addTo(map); // Añadir marcador al mapa
+  }
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const response = await fetch('/parcelas/api/DataOptions');
+    if (!response.ok) {
+      throw new Error('Error al obtener los datos de la base de datos');
+    }
+    const data = await response.json();
+    if (data.success) {
+      // Poblar los selectores de forma independiente
+      cargarComunas(data.data.comunas);
+      cargarFases(data.data.fases);
+      cargarCultivos(data.data.cultivos);
+    } else {
+      console.error('Error: los datos no son válidos.', data);
+    }
+  } catch (error) {
+    console.error('Error en la obtención de datos:', error);
+  }
+});
+// Funciones separadas para cada selector
+function cargarComunas(comunas) {
+  populateSelect('SelectComunaModal', comunas);
+}
+function cargarFases(fases) {
+  populateSelect('SelectFase', fases);
+}
+function cargarCultivos(cultivos) {
+  populateSelect('SelectCultivo', cultivos);
+}
+
+function populateSelect(selectId, options) {
+  // Verificar si el elemento select existe en el DOM
+  const selectElement = document.getElementById(selectId);
+  if (!selectElement) {
+    console.error(`ERROR: Elemento con id "${selectId}" no encontrado en el DOM.`);
+    return;
+  }
+
+  // Verificar si las opciones son válidas
+  if (!options || !Array.isArray(options) || options.length === 0) {
+    console.warn(`ADVERTENCIA: No se encontraron opciones válidas para el select con id "${selectId}".`);
+    return;
+  }
+
+  // Limpia las opciones previas del select
+  selectElement.innerHTML = '<option value="">Seleccionar </option>';
+  // Procesar y agregar las opciones al select
+  options.forEach((option, index) => {
+    try {
+      const opt = document.createElement('option');
+      // Configuración específica para cada tipo de select
+      if (selectId === 'SelectComunaModal') {
+        const selectElement = document.getElementById('SelectComunaModal');
+        opt.value = option.id_sector || '';
+        opt.textContent = option.comuna || 'Sin nombre';
+        if (!option.id_sector || !option.comuna) {
+          console.warn(`Opción incompleta detectada:`, option);
+        }      
+      } else if (selectId === 'SelectFase') {
+        if (!option.id_fase || !option.nombre) {
+          throw new Error(`Datos incompletos para la opción en index ${index}:`, option);
+        }
+        opt.value = option.id_fase;
+        opt.textContent = option.nombre;
+      } else if (selectId === 'SelectCultivo') {
+        if (!option.id_cultivo || !option.nombre) {
+          throw new Error(`Datos incompletos para la opción en index ${index}:`, option);
+        }
+        opt.value = option.id_cultivo;
+        opt.textContent = option.nombre;
+      }
+      // Añadir la opción al select
+      selectElement.appendChild(opt);
+    } catch (error) {
+      console.error(`ERROR: Problema al procesar la opción en index ${index} para "${selectId}":`, error.message);
+    }
+  });
+
+  if (window.enhanceSelect) window.enhanceSelect(selectElement);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Captura de elementos del DOM
+  const saveButton = document.getElementById('save-parcelacion');
+  const cancelButton = document.getElementById('cancel-parcelacion');
+  const parcelacionForm = document.getElementById('parcelacion-form');
+
+  // Aplica el dropdown diseñado a los selects del modal y los refresca tras un reset
+  const refrescarSelectsModal = () => {
+    ['SelectComunaModal', 'SelectFase', 'SelectCultivo', 'Selectregistro'].forEach((id) => {
+      const s = document.getElementById(id);
+      if (s && window.enhanceSelect) window.enhanceSelect(s);
+    });
+  };
+  refrescarSelectsModal();
+
+  // Evento para guardar la parcelación
+  saveButton.addEventListener('click', async () => {
+    const latitud = document.getElementById('latitud').value;
+    const longitud = document.getElementById('longitud').value;
+    const id_sector = document.getElementById('SelectComunaModal').value; // Sector
+    const id_fase = document.getElementById('SelectFase').value; // Fase
+    const id_cultivo = document.getElementById('SelectCultivo').value; // Cultivo
+    const registrada = document.getElementById('Selectregistro').value; // Obtener valor dinámico
+
+    // Validar que todos los campos estén completos
+    if (!latitud || !longitud || !id_sector || !id_fase || !id_cultivo || registrada === '') {
+      window.notify('Por favor, completa todos los campos antes de guardar.');
+      return;
+    }
+
+    // Enviar datos al servidor
+    try {
+      const response = await fetch('/parcelas/api/SaveParcel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ latitud, longitud, id_sector, id_fase, id_cultivo, registrada }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        window.notify('Parcelación guardada exitosamente.');
+        parcelacionForm.reset(); // Limpia el formulario después de guardar
+        refrescarSelectsModal();
+      } else {
+        window.notify('Error al guardar la parcelación: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error al guardar la parcelación:', error);
+      window.notify('Ocurrió un error al guardar la parcelación. Intenta nuevamente.');
+    }
+  });
+
+  // Evento para cancelar la parcelación
+  cancelButton.addEventListener('click', () => {
+    parcelacionForm.reset(); // Limpia el formulario
+    refrescarSelectsModal();
+
+    // Eliminar el marcador actual del mapa si existe
+    if (currentMarker) {
+      currentMarker.remove();
+      currentMarker = null; // Limpiar la referencia
+    }
+
+    // Mostrar mensaje de cancelación
+    window.notify('Parcelación cancelada.');
+  });
+});
+
+// Importa el mapa
+
+// Obtener el contenedor del dropdown
+const dropdown = document.getElementById('parcelas-dropdown');
+const cancelButton = document.getElementById('cancel-directions');
+
+document.addEventListener('DOMContentLoaded', () => {
+  obtenerParcelas();
+  // Escuchar cambios en el dropdown
+  dropdown.addEventListener('change', manejarSeleccionParcela);
+  cancelButton.addEventListener('click', cancelarVisualizacion);
+});
+
+function cancelarVisualizacion() {
+  // Limpiar las direcciones usando el control de direcciones
+  directions.removeRoutes();
+  
+ // console.log('Ruta eliminada del mapa');
+}
+
+
+// Función para obtener parcelas desde la API
+async function obtenerParcelas() {
+  try {
+    const response = await fetch('/api/get-comuna/parcelas');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const parcelas = await response.json();
+    // Llenar el dropdown con las parcelas agrupadas por comuna
+    llenarDropdownConParcelasAgrupadas(parcelas);
+    // Generar listado de parcelas en el acordeón
+
+    // Generar el acordeón con las parcelas agrupadas por comuna
+    generarListadoParcelasPorComuna(parcelas);
+    return parcelas;
+  } catch (error) {
+    console.error('Error al obtener parcelas:', error.message);
+    throw error;
+  }
+}
+
+// Función para llenar el dropdown con las parcelas agrupadas por comuna
+function llenarDropdownConParcelasAgrupadas(parcelas) {
+  dropdown.innerHTML = '<option value="">Seleccione una parcela</option>'; // Limpia el dropdown
+
+  const comunas = parcelas.reduce((acc, parcela) => {
+    const { comuna } = parcela;
+    if (!acc[comuna]) acc[comuna] = [];
+    acc[comuna].push(parcela);
+    return acc;
+  }, {});
+
+  Object.keys(comunas)
+    .sort()
+    .forEach(comuna => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = comuna;
+
+      comunas[comuna].forEach(parcela => {
+        const option = document.createElement('option');
+        option.value = parcela.id_parcelacion;
+        option.textContent = `Parcela ${parcela.id_parcelacion} - ${parcela.cultivo}`;
+        option.setAttribute('data-lat', parcela.latitud);
+        option.setAttribute('data-lng', parcela.longitud);
+        optgroup.appendChild(option);
+      });
+
+      dropdown.appendChild(optgroup);
+    });
+
+  if (window.enhanceSelect) window.enhanceSelect(dropdown);
+}
+
+// Función para generar el listado de parcelas agrupadas por comuna en un acordeón
+function generarListadoParcelasPorComuna(parcelas) {
+  const panel = document.getElementById('parcelacion-panel');
+  if (panel) {
+    panel.innerHTML = ''; // Limpia el panel antes de agregar nuevo contenido
+
+    // Agrupar las parcelas por comuna
+    const comunas = parcelas.reduce((acc, parcela) => {
+      const { comuna } = parcela;
+      if (!acc[comuna]) acc[comuna] = [];
+      acc[comuna].push(parcela);
+      return acc;
+    }, {});
+
+    // Crear los elementos del acordeón por cada comuna
+    Object.keys(comunas).sort().forEach(comuna => {
+      // Crear el botón de acordeón para la comuna
+      const comunaAccordion = document.createElement('button');
+      comunaAccordion.classList.add('accordion');
+      comunaAccordion.textContent = `${comuna} (${comunas[comuna].length})`;
+
+      // Crear el panel asociado al acordeón
+      const parcelaPanel = document.createElement('div');
+      parcelaPanel.classList.add('panel');
+
+      // Crear la lista de parcelas dentro del panel
+      const listaParcelas = document.createElement('ul');
+      comunas[comuna].forEach(parcela => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span class="parcela-link" data-id="${parcela.id_parcelacion}" data-lat="${parcela.latitud}" data-lng="${parcela.longitud}">
+            Parcela ${parcela.id_parcelacion} - Cultivo: ${parcela.cultivo}
+          </span>
+        `;
+        listaParcelas.appendChild(li);
+      });
+
+      parcelaPanel.appendChild(listaParcelas);
+      panel.appendChild(comunaAccordion);
+      panel.appendChild(parcelaPanel);
+
+      // Añadir funcionalidad de acordeón a cada comuna
+      comunaAccordion.addEventListener('click', function() {
+        this.classList.toggle('active');
+        const panel = this.nextElementSibling;
+        panel.style.maxHeight = panel.style.maxHeight ? null : panel.scrollHeight + 'px';
+      });
+    });
+  }
+}
+
+// Manejar selección de parcela
+
+function manejarSeleccionParcela(event) {
+  const selectedOption = dropdown.options[dropdown.selectedIndex];
+
+  if (!selectedOption || !selectedOption.dataset.lat || !selectedOption.dataset.lng) {
+    return; // Si no se selecciona una parcela válida
+  }
+
+  const destLat = parseFloat(selectedOption.dataset.lat);
+  const destLng = parseFloat(selectedOption.dataset.lng);
+
+  if (!isNaN(destLat) && !isNaN(destLng)) {
+    // Usar MapboxDirections para calcular y mostrar la ruta
+    mostrarRuta(destLat, destLng);
+  }
+}
+
+// Función para calcular y mostrar la ruta
+async function mostrarRuta(destLat, destLng) {
+  // Mostrar indicador de carga
+  const loadingIndicator = document.getElementById('loading-route');
+  if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+  // Obtener la ubicación actual del usuario
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const origen = [position.coords.longitude, position.coords.latitude];
+      const destino = [destLng, destLat];
+
+      try {
+        // Usar la API Directions de Mapbox
+        const modes = ["driving", "walking", "cycling", "driving-traffic"];
+        const selectedMode = modes[1]; // Cambia el índice según el modo seleccionado por el usuario
+
+        const response = await fetch(
+          `https://api.mapbox.com/directions/v5/mapbox/${selectedMode}/${origen.join(',')};${destino.join(',')}?geometries=geojson&access_token=${window.MAPBOX_TOKEN}`
+        );
+        if (!response.ok) {
+          throw new Error('Error al obtener datos de dirección');
+        }
+
+        const data = await response.json();
+        const route = data.routes[0].geometry;
+
+
+        // Centrar el mapa en la ruta
+        const bounds = new mapboxgl.LngLatBounds();
+        route.coordinates.forEach(coord => bounds.extend(coord));
+        map.fitBounds(bounds, { padding: 20, maxZoom: 12 });
+
+        // Usar el control de direcciones para actualizar origen/destino
+        directions.setOrigin(origen); // Configurar el origen dinámicamente
+        directions.setDestination(destino); // Configurar el destino dinámicamente
+
+        // Ocultar indicador de carga
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+
+      } catch (error) {
+        console.error('Error al mostrar la ruta:', error);
+        window.notify('No se pudo calcular la ruta. Verifique su conexión o permisos de ubicación.');
+        
+        // Ocultar indicador de carga en caso de error
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+      }
+    }, (error) => {
+      console.error('Error al obtener la ubicación:', error);
+      window.notify('No se pudo obtener su ubicación actual. Verifique los permisos de ubicación.');
+      
+      // Ocultar indicador de carga en caso de error
+      if (loadingIndicator) loadingIndicator.style.display = 'none';
+    });
+  } else {
+    window.notify('La geolocalización no está soportada en este navegador.');
+    
+    // Ocultar indicador de carga
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+  }
+}
+
+// (Las parcelas ya se cargan en el DOMContentLoaded del inicio del archivo)
+
+
+
+// ------------------------------------------CUARENTENAS ACTIVAS----------------------------------------------------------------
+
+// CUARENTENAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+// Variables globales
+let cuarentenasEnMapa = []; // Arreglo para mantener referencia a las cuarentenas en el mapa
+
+const dropdownCuarentenas = document.getElementById('cuarentenas-dropdown');
+
+
+async function obtenerCuarentenas() {
+  try {
+    console.log('Intentando obtener cuarentenas...');
+    const response = await fetch('/quarantines/get-comentario');
+    
+    console.log('Respuesta recibida:', response);
+    
+    if (!response.ok) {
+      console.error(`Error en la respuesta. Status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const cuarentenas = await response.json();
+    
+    console.log('Cuarentenas obtenidas:', cuarentenas);
+    
+    if (cuarentenas.length === 0) {
+      console.warn('No se encontraron cuarentenas');
+    }
+    
+    return cuarentenas;
+  } catch (error) {
+    console.error('Error detallado al obtener cuarentenas:', error);
+    throw error;
+  }
+}
+
+// Función para llenar el dropdown con las cuarentenas agrupadas por zona
+function llenarDropdownConCuarentenasAgrupadas(cuarentenas) {
+  dropdownCuarentenas.innerHTML = '<option value="">Seleccione una cuarentena</option>'; 
+
+  const zonas = cuarentenas.reduce((acc, cuarentena) => {
+    const zona = cuarentena.comuna || 'Sin zona';
+    if (!acc[zona]) acc[zona] = [];
+    acc[zona].push(cuarentena);
+    return acc;
+  }, {});
+
+  Object.keys(zonas).sort().forEach(zona => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = zona;
+
+    zonas[zona].forEach(cuarentena => {
+      const option = document.createElement('option');
+      option.value = cuarentena.id_cuarentena;
+      option.textContent = `Cuarentena ${cuarentena.id_cuarentena} - ${cuarentena.comentario || 'Sin comentario'}`;
+      option.setAttribute('data-lat', cuarentena.latitud);
+      option.setAttribute('data-lng', cuarentena.longitud);
+      optgroup.appendChild(option);
+    });
+
+    dropdownCuarentenas.appendChild(optgroup);
+  });
+
+  if (window.enhanceSelect) window.enhanceSelect(dropdownCuarentenas);
+}
+
+// Función para generar el listado de cuarentenas por comentario
+function generarListadoCuarentenasPorComentario(cuarentenas) {
+  const panel = document.getElementById('cuarentena-panel');
+  if (!panel) {
+    return; // Este panel no está montado en esta vista: se omite sin error.
+  }
+  panel.innerHTML = '';
+
+  const zonas = {}; 
+
+  cuarentenas.forEach(cuarentena => {
+    cuarentena.comentario || 'Sin comentario';
+    const zona = cuarentena.comuna || 'Sin zona';
+
+    if (!zonas[zona]) {
+      zonas[zona] = [];
+    }
+    zonas[zona].push(cuarentena);
+  });
+
+  const acordeonGeneral = document.createElement('button');
+  acordeonGeneral.classList.add('accordion');
+  acordeonGeneral.textContent = `Cuarentenas (${Object.keys(zonas).length} zonas)`;
+
+  const acordeonPanel = document.createElement('div');
+  acordeonPanel.classList.add('panel');
+
+  Object.keys(zonas).forEach(zona => {
+    const zonaAccordion = document.createElement('button');
+    zonaAccordion.classList.add('accordion');
+    zonaAccordion.textContent = `${zona} (${zonas[zona].length} cuarentenas)`;
+
+    const zonaPanel = document.createElement('div');
+    zonaPanel.classList.add('panel');
+
+    zonaAccordion.addEventListener('click', function () {
+      this.classList.toggle('active');
+      const panel = this.nextElementSibling;
+
+      zonaPanel.innerHTML = '';
+
+      if (panel.style.maxHeight) {
+        panel.style.maxHeight = null;
+      } else {
+        zonas[zona].forEach(cuarentena => {
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <span class="cuarentena-link" data-id="${cuarentena.id_cuarentena}" data-lat="${cuarentena.latitud}" data-lng="${cuarentena.longitud}">
+              Cuarentena ${cuarentena.id_cuarentena} - Comentario: ${cuarentena.comentario || 'Sin comentario'}
+            </span>
+          `;
+          zonaPanel.appendChild(li);
+        });
+        panel.style.maxHeight = panel.scrollHeight + 'px';
+      }
+    });
+
+    acordeonPanel.appendChild(zonaAccordion);
+    acordeonPanel.appendChild(zonaPanel);
+  });
+
+  panel.appendChild(acordeonGeneral);
+  panel.appendChild(acordeonPanel);
+
+  acordeonGeneral.addEventListener('click', function () {
+    this.classList.toggle('active');
+    acordeonPanel.style.maxHeight = acordeonPanel.style.maxHeight ? null : acordeonPanel.scrollHeight + 'px';
+  });
+}
+
+function volarACuarentenaDesdeDropdown(id, lat, lng) {
+  try {
+    // Limpiar cuarentenas existentes
+    cuarentenasEnMapa.forEach(cuarentena => {
+      map.removeLayer(cuarentena.layer);
+      map.removeSource(cuarentena.source);
+    });
+    cuarentenasEnMapa = []; 
+
+    // Volar a la ubicación
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 15,
+      essential: true
+    });
+
+    const sourceId = `cuarentena-${id}`;
+    const layerId = `cuarentena-layer-${id}`;
+
+    map.addSource(sourceId, {
+      'type': 'geojson',
+      'data': {
+        'type': 'Feature',
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [lng, lat]
+        }
+      }
+    });
+
+    map.addLayer({
+      'id': layerId,
+      'type': 'circle',
+      'source': sourceId,
+      'paint': {
+        'circle-radius': 10,
+        'circle-color': '#FF0000'
+      }
+    });
+
+    // Guardar la cuarentena en el array
+    cuarentenasEnMapa.push({ source: sourceId, layer: layerId });
+
+  } catch (error) {
+    console.error('Error al volar a la cuarentena:', error);
+  }
+}
+
+dropdownCuarentenas.addEventListener('change', function() {
+  const selectedOption = dropdownCuarentenas.options[dropdownCuarentenas.selectedIndex];
+  const id = selectedOption.value;
+  const lat = parseFloat(selectedOption.getAttribute('data-lat'));
+  const lng = parseFloat(selectedOption.getAttribute('data-lng'));
+
+  if (id) {
+    volarACuarentenaDesdeDropdown(id, lat, lng);
+  }
+});
+
+// Función para inicializar la aplicación y cargar cuarentenas
+async function init() {
+  try {
+    console.log('Inicializando aplicación de cuarentenas...');
+    const cuarentenas = await obtenerCuarentenas();
+    console.log('Cuarentenas recibidas:', cuarentenas);
+    
+    generarListadoCuarentenasPorComentario(cuarentenas);
+    llenarDropdownConCuarentenasAgrupadas(cuarentenas);
+  } catch (error) {
+    console.error('Error en la inicialización completa:', error);
+  }
+}
+// Inicializar la aplicación cuando el DOM esté completamente cargado
+document.addEventListener('DOMContentLoaded', init);
+
+
+// ------------------------------------------CUARENTENAS INACTIVAS----------------------------------------------------------------
+
+// Variables globales para cuarentenas inactivas
+let cuarentenasInactivas = []; // Arreglo para almacenar las cuarentenas inactivas
+const dropdownCuarentenasInactivas = document.getElementById('cuarentenas-inactivas-dropdown');
+
+// Función para obtener cuarentenas inactivas desde la API
+async function obtenerCuarentenasInactivas() {
+  try {
+    const response = await fetch('/quarantines/inactiva/comentario');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const cuarentenas = await response.json();
+    return cuarentenas.filter(cuarentena => !cuarentena.activa); // Filtrar solo las inactivas
+  } catch (error) {
+    console.error('Error al obtener cuarentenas inactivas:', error.message);
+    throw error;
+  }
+}
+
+// Función para llenar el dropdown con las cuarentenas inactivas agrupadas por zona
+function llenarDropdownConCuarentenasInactivasAgrupadas(cuarentenas) {
+  dropdownCuarentenasInactivas.innerHTML = '<option value="">Seleccione una cuarentena inactiva</option>'; // Limpia el dropdown
+
+  // Agrupar las cuarentenas por zona (usando comuna)
+  const zonas = cuarentenas.reduce((acc, cuarentena) => {
+    const zona = cuarentena.comuna || 'Sin zona';
+    if (!acc[zona]) acc[zona] = [];
+    acc[zona].push(cuarentena);
+    return acc;
+  }, {});
+
+  // Ordenar las zonas alfabéticamente
+  Object.keys(zonas).sort().forEach(zona => {
+    // Crear el grupo de opciones para la zona
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = zona;
+
+    // Agregar las cuarentenas de esta zona al grupo
+    zonas[zona].forEach(cuarentena => {
+      const option = document.createElement('option');
+      option.value = cuarentena.id_cuarentena;
+      option.textContent = `Cuarentena ${cuarentena.id_cuarentena} - ${cuarentena.comentario || 'Sin comentario'}`;
+      option.setAttribute('data-lat', cuarentena.latitud);
+      option.setAttribute('data-lng', cuarentena.longitud);
+      optgroup.appendChild(option);
+    });
+
+    dropdownCuarentenasInactivas.appendChild(optgroup);
+  });
+
+  if (window.enhanceSelect) window.enhanceSelect(dropdownCuarentenasInactivas);
+}
+
+// Función para generar el listado de cuarentenas inactivas por comentario
+function generarListadoCuarentenasInactivasPorComentario(cuarentenas) {
+  const panel = document.getElementById('cuarentena-inactiva-panel');
+  if (!panel) {
+    return; // Este panel no está montado en esta vista: se omite sin error.
+  }
+  panel.innerHTML = '';
+
+  const zonas = {}; // Agrupar por zona
+
+  // Agrupar las cuarentenas por zona
+  cuarentenas.forEach(cuarentena => {
+    cuarentena.comentario || 'Sin comentario';
+    const zona = cuarentena.comuna || 'Sin zona';
+
+    if (!zonas[zona]) {
+      zonas[zona] = [];
+    }
+    zonas[zona].push(cuarentena);
+  });
+
+  // Crear un acordeón principal que englobe todas las zonas
+  const acordeonGeneral = document.createElement('button');
+  acordeonGeneral.classList.add('accordion');
+  acordeonGeneral.textContent = `Cuarentenas Inactivas (${Object.keys(zonas).length} zonas)`;
+
+  const acordeonPanel = document.createElement('div');
+  acordeonPanel.classList.add('panel');
+
+  // Crear los elementos del sidebar por cada zona
+  Object.keys(zonas).forEach(zona => {
+    const zonaAccordion = document.createElement('button');
+    zonaAccordion.classList.add('accordion');
+    zonaAccordion.textContent = `${zona} (${zonas[zona].length} cuarentenas)`;
+
+    const zonaPanel = document.createElement('div');
+    zonaPanel.classList.add('panel');
+
+    zonas[zona].forEach(cuarentena => {
+      const cuarentenaItem = document.createElement('div');
+      cuarentenaItem.classList.add('cuarentena-item');
+      cuarentenaItem.textContent = `Cuarentena ${cuarentena.id_cuarentena} - ${cuarentena.comentario || 'Sin comentario'}`;
+      cuarentenaItem.addEventListener('click', () => {
+        // Al hacer clic, centramos el mapa en la cuarentena seleccionada
+        centrarEnCuarentena(cuarentena.latitud, cuarentena.longitud);
+      });
+      zonaPanel.appendChild(cuarentenaItem);
+    });
+
+    // Añadir los elementos de zona al acordeón principal
+    acordeonPanel.appendChild(zonaAccordion);
+    acordeonPanel.appendChild(zonaPanel);
+  });
+
+  // Agregar la lógica del acordeón al botón principal
+  acordeonGeneral.addEventListener('click', () => {
+    acordeonGeneral.classList.toggle('active');
+    const panel = acordeonGeneral.nextElementSibling;
+    if (panel.style.maxHeight) {
+      panel.style.maxHeight = null;
+    } else {
+      panel.style.maxHeight = `${panel.scrollHeight}px`;
+    }
+  });
+
+  // Añadir el acordeón general al panel principal
+  panel.appendChild(acordeonGeneral);
+  panel.appendChild(acordeonPanel);
+
+  // Lógica de estilo para los acordeones secundarios
+  const acordeones = panel.querySelectorAll('.accordion');
+  acordeones.forEach(acordeon => {
+    acordeon.addEventListener('click', () => {
+      acordeon.classList.toggle('active');
+      const panel = acordeon.nextElementSibling;
+      if (panel.style.maxHeight) {
+        panel.style.maxHeight = null;
+      } else {
+        panel.style.maxHeight = `${panel.scrollHeight}px`;
+      }
+    });
+  });
+}
+
+
+function volarACuarentenaInactivasDesdeDropdown(id, lat, lng) {
+  //console.log(`Volando a cuarentena ID: ${id}, Lat: ${lat}, Lng: ${lng}`);
+  
+  try {
+    // Limpiar cuarentenas existentes
+    cuarentenasEnMapa.forEach(cuarentena => {
+      map.removeLayer(cuarentena.layer);
+      map.removeSource(cuarentena.source);
+    });
+    cuarentenasEnMapa = []; // Reiniciar el array
+
+    // Volar a la ubicación
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 15,
+      essential: true
+    });
+
+    // Agregar marcador de la cuarentena
+    const sourceId = `cuarentena-${id}`;
+    const layerId = `cuarentena-layer-${id}`;
+
+    map.addSource(sourceId, {
+      'type': 'geojson',
+      'data': {
+        'type': 'Feature',
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [lng, lat]
+        }
+      }
+    });
+
+    map.addLayer({
+      'id': layerId,
+      'type': 'circle',
+      'source': sourceId,
+      'paint': {
+        'circle-radius': 10,
+        'circle-color': '#FF0000' // Color rojo para destacar
+      }
+    });
+
+    // Guardar la cuarentena en el array
+    cuarentenasEnMapa.push({ source: sourceId, layer: layerId });
+
+  } catch (error) {
+    console.error('Error al volar a la cuarentena:', error);
+  }
+}
+
+
+dropdownCuarentenasInactivas.addEventListener('change', function() {
+  const selectedOption = dropdownCuarentenasInactivas.options[dropdownCuarentenasInactivas.selectedIndex];
+  const id = selectedOption.value;
+  const lat = parseFloat(selectedOption.getAttribute('data-lat'));
+  const lng = parseFloat(selectedOption.getAttribute('data-lng'));
+
+  if (id) {
+    volarACuarentenaInactivasDesdeDropdown(id, lat, lng);
+  }
+});
+
+// Inicializar y cargar datos de cuarentenas inactivas
+(async function iniciarInactivas() {
+  try {
+    cuarentenasInactivas = await obtenerCuarentenasInactivas();
+    llenarDropdownConCuarentenasInactivasAgrupadas(cuarentenasInactivas);
+    generarListadoCuarentenasInactivasPorComentario(cuarentenasInactivas);
+  } catch (error) {
+    console.error('Error al inicializar cuarentenas inactivas:', error);
+  }
+})();
+
+
+function cancelarZoomYRestablecer(dropdownId) {
+  try {
+    // Remove any existing cuarentena layers from the map
+    cuarentenasEnMapa.forEach(cuarentena => {
+      if (map.getLayer(cuarentena.layer)) {
+        map.removeLayer(cuarentena.layer);
+      }
+      if (map.getSource(cuarentena.source)) {
+        map.removeSource(cuarentena.source);
+      }
+    });
+    
+    // Clear the cuarentenasEnMapa array
+    cuarentenasEnMapa = [];
+
+    // Reset map view to initial state
+    map.flyTo({
+      center: [-72.9369, -41.4717], // Replace with your initial map center coordinates
+      zoom: 12, // Initial zoom level
+      essential: true
+    });
+
+    // Reset the dropdown
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) {
+      dropdown.selectedIndex = 0; // Reset to the first option (usually a placeholder)
+      console.log(`Dropdown "${dropdownId}" reset successfully.`);
+    } else {
+      console.error(`Dropdown with ID "${dropdownId}" not found.`);
+    }
+
+  } catch (error) {
+    console.error('Error in cancelarZoomYRestablecer:', error);
+  }
+}
+
+document.getElementById('cancel-cuarentenas').addEventListener('click', () => {
+  cancelarZoomYRestablecer('cuarentenas-dropdown');
+});
+
+document.getElementById('cancel-inactivas').addEventListener('click', () => {
+  cancelarZoomYRestablecer('cuarentenas-inactivas-dropdown');
+});
+
+/* filter.js — manejo de paneles del mapa (filtros, crear cuarentena, crear parcelación) */
+
+const $ = (id) => document.getElementById(id);
+
+function hide(el) { if (el) el.classList.add("hidden"); }
+function toggle(el, others = []) {
+  if (!el) return;
+  const willShow = el.classList.contains("hidden");
+  others.forEach(hide);
+  el.classList.toggle("hidden", !willShow);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const filterPanel       = $("filter-panel");
+  const quarantinePanel   = $("quarantine-panel");
+  const parcelacionModal  = $("parcelacion-modal");
+
+  const filterButton      = $("filter-button");
+  const createQuarantine  = $("create-quarantine-button");
+  const createParcela     = $("create-parcela");
+  const cancelQuarantine  = $("cancel-quarantine");
+  const cancelParcela     = $("cancel-parcelacion");
+
+  // Botón de filtros (cierra los otros paneles al abrir)
+  if (filterButton) {
+    filterButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggle(filterPanel, [quarantinePanel, parcelacionModal]);
+    });
+  }
+
+  // Crear cuarentena (al volver a pulsar, si está abierto, se cancela)
+  if (createQuarantine) {
+    createQuarantine.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const abierto = quarantinePanel && !quarantinePanel.classList.contains("hidden");
+      if (abierto) {
+        if (cancelQuarantine) cancelQuarantine.click(); else hide(quarantinePanel);
+      } else {
+        toggle(quarantinePanel, [filterPanel, parcelacionModal]);
+      }
+    });
+  }
+  if (cancelQuarantine) cancelQuarantine.addEventListener("click", () => hide(quarantinePanel));
+
+  // Crear parcelación (al volver a pulsar, si está abierto, se cancela)
+  if (createParcela) {
+    createParcela.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const abierto = parcelacionModal && !parcelacionModal.classList.contains("hidden");
+      if (abierto) {
+        if (cancelParcela) cancelParcela.click(); else hide(parcelacionModal);
+      } else {
+        toggle(parcelacionModal, [filterPanel, quarantinePanel]);
+      }
+    });
+  }
+  if (cancelParcela) cancelParcela.addEventListener("click", () => hide(parcelacionModal));
+
+  // Cerrar el panel de filtros al hacer clic fuera de él
+  document.addEventListener("click", (e) => {
+    if (!filterPanel || filterPanel.classList.contains("hidden")) return;
+    if (filterPanel.contains(e.target) || (filterButton && filterButton.contains(e.target))) return;
+    hide(filterPanel);
+  });
+});
+
+/* ---- Soporte para las vistas CRUD (links del sidebar) ---- */
+function setupSidebarLinks() {
+  const sidebarLinks = document.querySelectorAll("a[data-load-table]");
+  sidebarLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const tableName = link.getAttribute("data-load-table");
+      if (typeof loadItems === "function") loadItems(tableName);
+      history.pushState(null, "", link.href);
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupSidebarLinks();
+  if (typeof getTableNameFromUrl === "function") {
+    const currentTable = getTableNameFromUrl();
+    if (currentTable && typeof loadItems === "function") loadItems(currentTable);
+  }
+});

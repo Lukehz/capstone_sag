@@ -1,9 +1,57 @@
 const { connectDB, sql, query } = require('../config/db');
+const { cacheado, invalidar } = require('../utils/cacheMapa');
+const { latitudValida, longitudValida, existeId } = require('../utils/validar');
+const { registrarAuditoria } = require('../utils/auditoria');
+const { describirCuarentena } = require('../utils/auditDescripcion');
 
 const saveQuarantine = async (req, res) => {
   const { points, comment: comentario, type, radius, idSector } = req.body;
+
+  // --- Validación de entrada (antes de abrir la transacción) ---
   if (!comentario || typeof comentario !== 'string' || comentario.trim() === '') {
-    return res.status(400).json({ success: false, error: 'El campo "comentario" es obligatorio y debe ser una cadena válida.' });
+    return res.status(400).json({ success: false, error: 'El comentario es obligatorio.' });
+  }
+  if (!idSector) {
+    return res.status(400).json({ success: false, error: 'Debe seleccionar un sector.' });
+  }
+  if (!Array.isArray(points) || points.length === 0) {
+    return res.status(400).json({ success: false, error: 'Faltan los puntos de la cuarentena.' });
+  }
+
+  let latitud, longitud, radio = null;
+
+  if (type === 'polygon') {
+    if (points.length < 3) {
+      return res.status(400).json({ success: false, error: 'Se requieren al menos 3 puntos para un trazado.' });
+    }
+    latitud = points[0][1];
+    longitud = points[0][0];
+  } else if (type === 'radius') {
+    if (!points[0] || points[0].length !== 2 || !radius || isNaN(radius)) {
+      return res.status(400).json({ success: false, error: 'Se requiere un punto central y un radio válido para una cuarentena por radio.' });
+    }
+    latitud = points[0][1];
+    longitud = points[0][0];
+    radio = parseFloat(radius);
+    if (radio <= 0) {
+      return res.status(400).json({ success: false, error: 'El radio debe ser un valor positivo.' });
+    }
+  } else {
+    return res.status(400).json({ success: false, error: 'El campo "type" debe ser "polygon" o "radius".' });
+  }
+
+  // Coordenadas del punto base dentro de rango.
+  if (!latitudValida(latitud) || !longitudValida(longitud)) {
+    return res.status(400).json({ success: false, error: 'Las coordenadas están fuera de rango.' });
+  }
+  // En un trazado, todos los vértices deben tener coordenadas válidas.
+  if (type === 'polygon') {
+    const verticeInvalido = points.some(function (p) {
+      return !Array.isArray(p) || p.length !== 2 || !longitudValida(p[0]) || !latitudValida(p[1]);
+    });
+    if (verticeInvalido) {
+      return res.status(400).json({ success: false, error: 'Hay vértices con coordenadas inválidas.' });
+    }
   }
 
   let pool;
@@ -11,31 +59,14 @@ const saveQuarantine = async (req, res) => {
   let idCuarentena;
 
   try {
+    // Clave foránea: el sector debe existir (lectura previa, sin transacción abierta).
+    if (!(await existeId('sector', 'id_sector', idSector))) {
+      return res.status(400).json({ success: false, error: 'El sector seleccionado no existe.' });
+    }
+
     pool = await connectDB();
     transaction = new sql.Transaction(pool);
     await transaction.begin();
-
-    let latitud, longitud, radio = null;
-
-    if (type === 'polygon') {
-      if (points.length < 3) {
-        return res.status(400).json({ success: false, error: 'Se requieren al menos 3 puntos para un trazado.' });
-      }
-      latitud = points[0][1];
-      longitud = points[0][0];
-    } else if (type === 'radius') {
-      if (!points[0] || points[0].length !== 2 || !radius || isNaN(radius)) {
-        return res.status(400).json({ success: false, error: 'Se requiere un punto central y un radio válido para una cuarentena por radio.' });
-      }
-      latitud = points[0][1];
-      longitud = points[0][0];
-      radio = parseFloat(radius);
-      if (radio <= 0) {
-        return res.status(400).json({ success: false, error: 'El radio debe ser un valor positivo.' });
-      }
-    } else {
-      return res.status(400).json({ success: false, error: 'El campo "type" debe ser "polygon" o "radius".' });
-    }
 
     const activa = 1;
 
@@ -63,33 +94,21 @@ const saveQuarantine = async (req, res) => {
       ))
     );
 
-    // Paso 3: Guardar los vértices solo si es un trazado
-    if (type === 'polygon') {
-      for (let i = 0; i < uniquePoints.length; i++) {
-        // Verificar si el vértice ya existe en la base de datos
-        const existingVertice = await transaction.request()
-          .input('latitud', sql.Float, uniquePoints[i][1])
-          .input('longitud', sql.Float, uniquePoints[i][0])
-          .input('id_cuarentena', sql.Int, idCuarentena)
-          .query(`
-            SELECT COUNT(*) AS count
-            FROM dbo.vertice
-            WHERE id_cuarentena = @id_cuarentena
-              AND latitud = @latitud
-              AND longitud = @longitud
-          `);
-
-        if (existingVertice.recordset[0].count === 0) {
-          // Solo insertar si el punto no existe
-          await transaction.request()
-            .input('id_cuarentena', sql.Int, idCuarentena)
-            .input('latitud', sql.Float, uniquePoints[i][1])
-            .input('longitud', sql.Float, uniquePoints[i][0])
-            .input('orden', sql.Int, i + 1)
-            .query('INSERT INTO dbo.vertice (id_cuarentena, latitud, longitud, orden) VALUES (@id_cuarentena, @latitud, @longitud, @orden)');
-        }
-      }
-      //console.log(`Vértices guardados para el trazado de cuarentena con ID: ${idCuarentena}`);
+    // Paso 3: Guardar los vértices solo si es un trazado.
+    // La cuarentena recién se creó, así que sus vértices no existen aún: los
+    // insertamos todos en UNA sola consulta (antes era 1 SELECT + 1 INSERT por punto).
+    if (type === 'polygon' && uniquePoints.length > 0) {
+      const reqVertices = transaction.request();
+      reqVertices.input('id_cuarentena', sql.Int, idCuarentena);
+      const valores = uniquePoints.map((p, i) => {
+        reqVertices.input(`lat${i}`, sql.Float, p[1]);
+        reqVertices.input(`lng${i}`, sql.Float, p[0]);
+        reqVertices.input(`ord${i}`, sql.Int, i + 1);
+        return `(@id_cuarentena, @lat${i}, @lng${i}, @ord${i})`;
+      }).join(', ');
+      await reqVertices.query(
+        `INSERT INTO dbo.vertice (id_cuarentena, latitud, longitud, orden) VALUES ${valores}`
+      );
     }
 
     // Ejecutar el procedimiento almacenado
@@ -100,6 +119,11 @@ const saveQuarantine = async (req, res) => {
 
     // Confirmar la transacción
     await transaction.commit();
+    invalidar(); // los datos del mapa cambiaron
+    await registrarAuditoria(req, {
+      entidad: 'cuarentena', accion: 'crear', idEntidad: idCuarentena,
+      detalle: await describirCuarentena(idCuarentena)
+    });
     res.status(201).json({
       success: true,
       id_cuarentena: idCuarentena,
@@ -121,49 +145,51 @@ const saveQuarantine = async (req, res) => {
       error: message,
       id_cuarentena: idCuarentena
     });
-  } finally {
-    if (pool) await pool.close();
   }
+  // Nota: NO cerramos el pool aquí; es compartido (lo cierra db.js al apagar el servidor).
 };
 
 
 
 const getAllQuarantines = async (req, res) => {
   try {
-    const result = await sql.query(`
-    SELECT c.id_cuarentena, c.latitud, c.longitud, c.radio, c.comentario, c.activa,
-    v.id_conexion, v.latitud_INI, v.longitud_INI, v.latitud_END, v.longitud_END, v.ORDEN
-    FROM dbo.cuarentena c
-    INNER JOIN VW_conexiones_cuarentena v ON c.id_cuarentena = v.id_cuarentena
-    WHERE c.activa = 1
-    ORDER BY c.id_cuarentena, v.ORDEN
-    `);
+    const data = await cacheado('cuar:activas:trazado', async () => {
+      const result = await sql.query(`
+      SELECT c.id_cuarentena, c.latitud, c.longitud, c.radio, c.comentario, c.activa,
+      v.id_conexion, v.latitud_INI, v.longitud_INI, v.latitud_END, v.longitud_END, v.ORDEN
+      FROM dbo.cuarentena c
+      INNER JOIN VW_conexiones_cuarentena v ON c.id_cuarentena = v.id_cuarentena
+      WHERE c.activa = 1
+      ORDER BY c.id_cuarentena, v.ORDEN
+      `);
 
-    const quarantines = result.recordset.reduce((acc, row) => {
-      if (!acc[row.id_cuarentena]) {
-        acc[row.id_cuarentena] = {
-          id: row.id_cuarentena,
-          latitud: row.latitud,
-          longitud: row.longitud,
-          radio: row.radio,
-          comentario: row.comentario,
-          activa: row.activa,
-          conexiones: [] // Cambié a conexiones
-        };
-      }
-    
-      acc[row.id_cuarentena].conexiones.push({
-        id_conexion: row.id_conexion,
-        latitud_INI: row.latitud_INI,
-        longitud_INI: row.longitud_INI,
-        latitud_END: row.latitud_END,
-        longitud_END: row.longitud_END,
-        orden: row.ORDEN,
-      });
-      return acc;
-    }, {});
+      const quarantines = result.recordset.reduce((acc, row) => {
+        if (!acc[row.id_cuarentena]) {
+          acc[row.id_cuarentena] = {
+            id: row.id_cuarentena,
+            latitud: row.latitud,
+            longitud: row.longitud,
+            radio: row.radio,
+            comentario: row.comentario,
+            activa: row.activa,
+            conexiones: []
+          };
+        }
+        acc[row.id_cuarentena].conexiones.push({
+          id_conexion: row.id_conexion,
+          latitud_INI: row.latitud_INI,
+          longitud_INI: row.longitud_INI,
+          latitud_END: row.latitud_END,
+          longitud_END: row.longitud_END,
+          orden: row.ORDEN,
+        });
+        return acc;
+      }, {});
 
-    res.json(Object.values(quarantines));
+      return Object.values(quarantines);
+    });
+
+    res.json(data);
   } catch (error) {
     console.error('Error al obtener cuarentenas:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -172,23 +198,24 @@ const getAllQuarantines = async (req, res) => {
 
 const getAllRadiusQuarantines = async (req, res) => {
   try {
-    const result = await sql.query(`
-      SELECT id_cuarentena, latitud, longitud, radio, comentario, activa
-      FROM dbo.cuarentena
-      WHERE radio IS NOT NULL
-      ORDER BY id_cuarentena
-    `);
+    const data = await cacheado('cuar:radio', async () => {
+      const result = await sql.query(`
+        SELECT id_cuarentena, latitud, longitud, radio, comentario, activa
+        FROM dbo.cuarentena
+        WHERE radio IS NOT NULL
+        ORDER BY id_cuarentena
+      `);
+      return result.recordset.map(row => ({
+        id: row.id_cuarentena,
+        latitud: row.latitud,
+        longitud: row.longitud,
+        radio: row.radio,
+        comentario: row.comentario,
+        activa: row.activa
+      }));
+    });
 
-    const radiusQuarantines = result.recordset.map(row => ({
-      id: row.id_cuarentena,
-      latitud: row.latitud,
-      longitud: row.longitud,
-      radio: row.radio,
-      comentario: row.comentario,
-      activa: row.activa
-    }));
-
-    res.json(radiusQuarantines);
+    res.json(data);
   } catch (error) {
     console.error('Error al obtener cuarentenas de radio:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -327,23 +354,23 @@ const getInactiveQuarantines = async (req, res) => {
   //console.log('Obteniendo cuarentenas inactivas');
 
   try {
-    // Realizar la consulta correctamente
-    const result = await sql.query(`
-      SELECT id_cuarentena, latitud, longitud, radio, id_sector, comentario, activa
-      FROM dbo.cuarentena
-      WHERE activa = 0
-    `);
+    // Realizar la consulta correctamente (cacheada)
+    const filas = await cacheado('cuar:inactivas', async () => {
+      const result = await sql.query(`
+        SELECT id_cuarentena, latitud, longitud, radio, id_sector, comentario, activa
+        FROM dbo.cuarentena
+        WHERE activa = 0
+      `);
+      return result.recordset;
+    });
 
-    // Verificar el resultado de la consulta
-    //console.log('Resultado de la consulta:', result.recordset);
-
-    // Si no hay resultados, podemos devolver un mensaje más claro
-    if (result.recordset.length === 0) {
+    // Si no hay resultados, devolver un mensaje más claro
+    if (filas.length === 0) {
       return res.status(404).json({ message: 'No se encontraron cuarentenas inactivas.' });
     }
 
     // Responder con los resultados
-    res.json(result.recordset);
+    res.json(filas);
   } catch (err) {
     console.error('Error al obtener inactivas:', err);
     res.status(500).json({ error: 'Error al obtener información: ' + err.message });
@@ -355,40 +382,43 @@ const getInactiveQuarantines = async (req, res) => {
 
 const getInactivaTrazado = async (req, res) => {
   try {
-    const result = await sql.query(`
-    SELECT c.id_cuarentena, c.latitud, c.longitud, c.radio, c.comentario, c.activa,
-    v.id_conexion, v.latitud_INI, v.longitud_INI, v.latitud_END, v.longitud_END, v.ORDEN
-    FROM dbo.cuarentena c
-    INNER JOIN VW_conexiones_cuarentena v ON c.id_cuarentena = v.id_cuarentena
-    WHERE c.activa = 0
-    ORDER BY c.id_cuarentena, v.ORDEN
-    `);
+    const data = await cacheado('cuar:inactivas:trazado', async () => {
+      const result = await sql.query(`
+      SELECT c.id_cuarentena, c.latitud, c.longitud, c.radio, c.comentario, c.activa,
+      v.id_conexion, v.latitud_INI, v.longitud_INI, v.latitud_END, v.longitud_END, v.ORDEN
+      FROM dbo.cuarentena c
+      INNER JOIN VW_conexiones_cuarentena v ON c.id_cuarentena = v.id_cuarentena
+      WHERE c.activa = 0
+      ORDER BY c.id_cuarentena, v.ORDEN
+      `);
 
-    const quarantines = result.recordset.reduce((acc, row) => {
-      if (!acc[row.id_cuarentena]) {
-        acc[row.id_cuarentena] = {
-          id: row.id_cuarentena,
-          latitud: row.latitud,
-          longitud: row.longitud,
-          radio: row.radio,
-          comentario: row.comentario,
-          activa: row.activa,
-          conexiones: [] // Cambié a conexiones
-        };
-      }
-    
-      acc[row.id_cuarentena].conexiones.push({
-        id_conexion: row.id_conexion,
-        latitud_INI: row.latitud_INI,
-        longitud_INI: row.longitud_INI,
-        latitud_END: row.latitud_END,
-        longitud_END: row.longitud_END,
-        orden: row.ORDEN,
-      });
-      return acc;
-    }, {});
+      const quarantines = result.recordset.reduce((acc, row) => {
+        if (!acc[row.id_cuarentena]) {
+          acc[row.id_cuarentena] = {
+            id: row.id_cuarentena,
+            latitud: row.latitud,
+            longitud: row.longitud,
+            radio: row.radio,
+            comentario: row.comentario,
+            activa: row.activa,
+            conexiones: []
+          };
+        }
+        acc[row.id_cuarentena].conexiones.push({
+          id_conexion: row.id_conexion,
+          latitud_INI: row.latitud_INI,
+          longitud_INI: row.longitud_INI,
+          latitud_END: row.latitud_END,
+          longitud_END: row.longitud_END,
+          orden: row.ORDEN,
+        });
+        return acc;
+      }, {});
 
-    res.json(Object.values(quarantines));
+      return Object.values(quarantines);
+    });
+
+    res.json(data);
   } catch (error) {
     console.error('Error al obtener cuarentenas:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -414,6 +444,8 @@ const deactivateQuarantine = async (req, res) => {
         { name: 'id', type: sql.Int, value: id }
       ]);
 
+      invalidar(); // los datos del mapa cambiaron
+      await registrarAuditoria(req, { entidad: 'cuarentena', accion: 'editar', idEntidad: id, detalle: 'desactivada' });
       res.json({ success: true, message: 'Cuarentena desactivada' });
 
   } catch (error) {
@@ -444,6 +476,8 @@ const activateQuarantine = async (req, res) => {
         { name: 'id', type: sql.Int, value: id }
       ]);
 
+      invalidar(); // los datos del mapa cambiaron
+      await registrarAuditoria(req, { entidad: 'cuarentena', accion: 'editar', idEntidad: id, detalle: 'activada' });
       res.json({ success: true, message: 'Cuarentena activada' });
 
   } catch (error) {

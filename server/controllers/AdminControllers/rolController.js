@@ -5,6 +5,7 @@
 
 const { sql, query } = require('../../config/db');
 const { limpiarCache } = require('../../Middlewares/permisos');
+const { registrarAuditoria } = require('../../utils/auditoria');
 
 // Genera un código (slug) estable a partir del nombre del rol.
 function slug(s) {
@@ -158,7 +159,9 @@ async function crear(req, res) {
 
     const r = await query(batch, params);
     limpiarCache();
-    res.status(201).json({ ok: true, id_rol: (r && r[0] && r[0].id_rol) || null, codigo });
+    const nuevoId = (r && r[0] && r[0].id_rol) || null;
+    await registrarAuditoria(req, { entidad: 'rol', accion: 'crear', idEntidad: nuevoId, detalle: nombre + ' (' + codigo + ')' });
+    res.status(201).json({ ok: true, id_rol: nuevoId, codigo });
   } catch (e) {
     console.error('crear rol:', e);
     res.status(500).json({ error: 'Error al crear el rol' });
@@ -205,6 +208,7 @@ async function actualizar(req, res) {
 
     await query(batch, params);
     limpiarCache();
+    await registrarAuditoria(req, { entidad: 'rol', accion: 'editar', idEntidad: id, detalle: base[0].codigo });
     res.json({ ok: true });
   } catch (e) {
     console.error('actualizar rol:', e);
@@ -230,6 +234,7 @@ async function eliminar(req, res) {
     // Las tablas puente se borran en cascada (ON DELETE CASCADE).
     await query('DELETE FROM rol WHERE id_rol = @id', [{ name: 'id', type: sql.Int, value: id }]);
     limpiarCache();
+    await registrarAuditoria(req, { entidad: 'rol', accion: 'eliminar', idEntidad: id, detalle: base[0].codigo });
     res.json({ ok: true });
   } catch (e) {
     console.error('eliminar rol:', e);

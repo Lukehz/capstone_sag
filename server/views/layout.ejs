@@ -41,6 +41,12 @@
 </head>
 <body class="flex h-screen overflow-hidden" x-data="{ open: false, infoOpen: false }">
 
+    <!-- Botón de menú (solo móvil) y fondo para cerrar -->
+    <button type="button" class="mobile-menu-btn" @click="open = !open" aria-label="Abrir o cerrar menú">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="sidebar-backdrop" :class="{ 'is-open': open }" @click="open = false"></div>
+
     <!-- (Mapbox GL, Directions y Geocoder se cargan solo en la página del mapa) -->
 
     <!-- Sidebar -->

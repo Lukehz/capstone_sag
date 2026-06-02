@@ -16,6 +16,7 @@ const cultivoRoutes = require('./Routes/AdminRoutes/cultivoRoutes');
 const usuarioRoutes = require('./Routes/AdminRoutes/usuarioRoutes');
 const rolRoutes = require('./Routes/AdminRoutes/rolRoutes');
 const bitacoraRoutes = require('./Routes/AdminRoutes/bitacoraRoutes');
+const reportesRoutes = require('./Routes/AdminRoutes/reportesRoutes');
 const historialRoutes = require('./Routes/AdminRoutes/historialRoutes');
 const authRoutes = require('./Routes/AdminRoutes/authRoutes'); // Importar rutas de autenticación
 const { verificarAutenticacion } = require('./Middlewares/authMiddleware');
@@ -286,6 +287,7 @@ app.use('/api/cultivo', cultivoRoutes);
 app.use('/api/usuario', usuarioRoutes);
 app.use('/api/rol', rolRoutes);
 app.use('/api/bitacora', bitacoraRoutes);
+app.use('/reportes', reportesRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);

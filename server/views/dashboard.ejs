@@ -1,14 +1,26 @@
 <style>
   .dash{flex:1; width:100%; height:100vh; overflow-y:auto; background:var(--bg); color:var(--text);}
   .dash-wrap{max-width:1100px; margin:0 auto; padding:28px 24px 56px;}
-  .dash-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
-  .dash-head h1{margin:0 0 3px; font-size:22px; font-weight:700; letter-spacing:-.01em;}
+  .dash-head{display:grid; grid-template-columns:1fr auto; column-gap:12px; row-gap:6px; align-items:center; margin-bottom:18px;}
+  .dash-head > div:first-child{display:contents;}  /* h1 y p pasan a ser celdas de la grilla */
+  .dash-head__right{display:contents;}              /* fecha y botones pasan a ser celdas de la grilla */
+  .dash-head h1{grid-column:1; grid-row:1;}
+  .dash-head p{grid-column:1; grid-row:2;}
+  .dash-tag{grid-column:2; grid-row:1; justify-self:end;}
+  .reportes-actions{grid-column:2; grid-row:2; justify-self:end;}
+  .reportes-actions .btn{padding:5px 9px; font-size:12px;}
+  .reportes-actions .btn i{font-size:11px;}
+  .dash-head h1{margin:0; font-size:22px; font-weight:700; letter-spacing:-.01em;}
   .dash-head p{margin:0; font-size:13.5px; color:var(--text-muted);}
   .dash-tag{font-size:12px; color:var(--text-soft); border:1px solid var(--border); padding:4px 10px; border-radius:999px;}
   .dash-divider{display:flex; align-items:center; gap:10px; margin:26px 0 14px;}
   .dash-divider::before,.dash-divider::after{content:""; flex:1; height:1px; background:var(--border);}
   .dash-divider span{display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; background:var(--brand-soft-bg); color:var(--brand-soft-text); padding:5px 13px; border-radius:999px;}
   .dash-section-title{font-size:13px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px;}
+  .dash-filtro{display:inline-flex; align-items:center; gap:6px; margin-left:8px; font-size:12px; font-weight:600; text-transform:none; letter-spacing:0; background:var(--brand-soft-bg); color:var(--brand-soft-text); padding:3px 6px 3px 10px; border-radius:999px; vertical-align:middle;}
+  .dash-filtro i{font-size:10px;}
+  .dash-filtro button{border:0; background:transparent; color:inherit; cursor:pointer; font-size:16px; line-height:1; padding:0 3px;}
+  .adm-filtro-wrap{text-align:center; margin:-4px 0 14px;}
   .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px;}
   .kpi{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:15px 16px;}
   .kpi__label{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-muted); margin-bottom:6px;}
@@ -27,6 +39,7 @@
   .dash-muted{color:var(--text-soft);}
   .dash-empty{font-size:13px; color:var(--text-soft); padding:8px 0;}
   @media (max-width:760px){ .panels{grid-template-columns:1fr;} }
+  @media (max-width:768px){ .dash-wrap{padding-top:60px;} }
 </style>
 
 <div class="dash">
@@ -37,13 +50,23 @@
         <h1>Panel de control</h1>
         <p>Resumen fitosanitario y territorial · SAG</p>
       </div>
-      <span class="dash-tag" id="dash-fecha"></span>
+      <div class="dash-head__right">
+        <span class="dash-tag" id="dash-fecha"></span>
+        <div class="reportes-actions">
+          <button id="btn-export-pdf" class="btn btn-soft btn-sm"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+          <% if ((typeof puedeVer === 'function') && (puedeVer('parcelaciones') || puedeVer('cuarentenas'))) { %>
+          <button id="btn-export-excel" class="btn btn-soft btn-sm"><i class="fas fa-file-excel"></i> Exportar Excel</button>
+          <% } %>
+        </div>
+      </div>
     </div>
 
     <!-- ============ SECCIÓN ADMINISTRADOR (solo administrador) ============ -->
     <% if (typeof puedeVer === 'function' && puedeVer('usuarios')) { %>
     <div id="dash-admin">
       <div class="dash-divider"><span><i class="fas fa-lock"></i> Solo administrador</span></div>
+      <div id="adm-filtro-wrap" class="adm-filtro-wrap" style="display:none"><span id="adm-filtro" class="dash-filtro"></span></div>
+      <div id="admin-status"></div>
 
       <div class="kpis">
         <div class="kpi"><div class="kpi__label"><i class="fas fa-users"></i> Usuarios</div><div class="kpi__value" id="adm-usuarios">—</div></div>
@@ -66,6 +89,7 @@
     <% if (typeof puedeVer === 'function' && puedeVer('bitacora')) { %>
     <div id="dash-accesos">
       <div class="dash-divider"><span><i class="fas fa-user-shield"></i> Accesos al sistema</span></div>
+      <div id="accesos-status"></div>
 
       <div class="kpis">
         <div class="kpi"><div class="kpi__label"><i class="fas fa-sign-in-alt"></i> Ingresos hoy</div><div class="kpi__value" id="acc-hoy">—</div></div>
@@ -84,7 +108,8 @@
     <% } %>
 
     <!-- ============ SECCIÓN GENERAL (todos los roles) ============ -->
-    <p class="dash-section-title">Información general</p>
+    <p class="dash-section-title">Información general <span id="dash-filtro" class="dash-filtro" style="display:none"></span></p>
+    <div id="general-status"></div>
 
     <div class="kpis">
       <div class="kpi"><div class="kpi__label"><i class="fas fa-map"></i> Parcelaciones</div><div class="kpi__value" id="kpi-parcelaciones">—</div></div>
@@ -115,4 +140,4 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="/js/dashboard.js"></script>
+<script src="/js/dist/dashboard.bundle.js"></script>

@@ -7,6 +7,7 @@
 
   <!-- Mapa -->
   <div id="map"></div>
+  <div id="map-status" class="map-overlay map-status" aria-live="polite"></div>
 
   <!-- Estado de cálculo de ruta -->
   <div id="loading-route" style="display:none;">Calculando ruta…</div>
@@ -36,9 +37,9 @@
   </div>
 
   <!-- Panel de Filtros -->
-  <div id="filter-panel" class="map-overlay panel panel--filters hidden">
+  <div id="filter-panel" class="map-overlay panel panel--filters hidden" role="dialog" aria-labelledby="filter-panel-title">
     <div class="panel__head">
-      <span class="panel__title"><i class="fas fa-sliders-h"></i>Filtros</span>
+      <span class="panel__title" id="filter-panel-title"><i class="fas fa-sliders-h" aria-hidden="true"></i>Filtros</span>
     </div>
 
     <div class="section-label">Capas del mapa</div>
@@ -95,9 +96,9 @@
   </div>
 
   <!-- Panel: Crear Cuarentena -->
-  <div id="quarantine-panel" class="map-overlay panel panel--quarantine hidden">
+  <div id="quarantine-panel" class="map-overlay panel panel--quarantine hidden" role="dialog" aria-labelledby="quarantine-panel-title">
     <div class="panel__head">
-      <span class="panel__title"><i class="fas fa-draw-polygon"></i>Crear Cuarentena</span>
+      <span class="panel__title" id="quarantine-panel-title"><i class="fas fa-draw-polygon" aria-hidden="true"></i>Crear Cuarentena</span>
       <button type="button" id="trazado-tutorial-btn" class="tutorial-btn"><i class="fas fa-circle-question"></i> Tutorial</button>
     </div>
     <div class="field">
@@ -193,9 +194,9 @@
   </div>
 
   <!-- Modal: Crear Parcelación -->
-  <div id="parcelacion-modal" class="map-overlay panel modal hidden">
+  <div id="parcelacion-modal" class="map-overlay panel modal hidden" role="dialog" aria-modal="true" aria-labelledby="parcelacion-modal-title">
     <div class="panel__head">
-      <span class="panel__title"><i class="fas fa-seedling"></i>Crear Parcelación</span>
+      <span class="panel__title" id="parcelacion-modal-title"><i class="fas fa-seedling" aria-hidden="true"></i>Crear Parcelación</span>
     </div>
     <form id="parcelacion-form" class="form-grid">
       <div class="field" style="margin:0;">
@@ -251,10 +252,6 @@
 <script defer src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
 <script defer src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.js"></script>
 <script defer src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
-<script defer src="/js/multiselect.js"></script>
-<script type="module" src="js/map.js"></script>
-<script type="module" src="/js/quarantine.js"></script>
-<script type="module" src="js/parcelas.js"></script>
-<script type="module" src="js/api.js"></script>
-<script type="module" src="js/sidebar.js"></script>
-<script type="module" src="js/filter.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script defer src="/js/dist/map-libs.bundle.js"></script>
+<script type="module" src="/js/dist/map.bundle.js"></script>

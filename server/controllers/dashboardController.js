@@ -71,7 +71,7 @@ const resumen = async (req, res) => {
 // ---------------------------------------------------------------------------
 const usuarios = async (req, res) => {
     try {
-        const [kpis, porRol, porTema, ultimos] = await Promise.all([
+        const [kpis, porRol, porTema, ultimos, usuariosRaw] = await Promise.all([
             query(`
                 SELECT
                   (SELECT COUNT(*) FROM usuario)                  AS usuarios_total,
@@ -91,14 +91,16 @@ const usuarios = async (req, res) => {
                 SELECT TOP 6 nombre, apellido, usuario, rol,
                        CONVERT(varchar(10), fecha_creacion, 23) AS fecha
                 FROM usuario ORDER BY fecha_creacion DESC, id_usuario DESC
-            `)
+            `),
+            query(`SELECT rol, tema FROM usuario`)
         ]);
 
         res.json({
             kpis: kpis[0] || {},
             porRol,
             porTema,
-            ultimos
+            ultimos,
+            usuariosRaw
         });
     } catch (error) {
         console.error('Error en dashboard/usuarios:', error.message);
@@ -106,4 +108,27 @@ const usuarios = async (req, res) => {
     }
 };
 
-module.exports = { resumen, usuarios };
+// ---------------------------------------------------------------------------
+//  Datos crudos por parcela (una fila por parcela) para los gráficos
+//  interactivos del panel: permite recalcular y filtrar en el cliente.
+// ---------------------------------------------------------------------------
+const parcelasRaw = async (req, res) => {
+    try {
+        const parcelas = await query(`
+            SELECT c.nombre AS cultivo, f.nombre AS fase, r.nombre AS region,
+                   FORMAT(p.fecha_creacion, 'yyyy-MM') AS mes
+            FROM parcelacion p
+            JOIN cultivo c    ON p.id_cultivo   = c.id_cultivo
+            JOIN fase f       ON p.id_fase      = f.id_fase
+            JOIN sector s     ON p.id_sector    = s.id_sector
+            JOIN provincia pr ON s.id_provincia = pr.id_provincia
+            JOIN region r     ON pr.id_region   = r.id_region
+        `);
+        res.json({ parcelas });
+    } catch (error) {
+        console.error('Error en dashboard/parcelas-raw:', error.message);
+        res.status(500).json({ message: 'Error al obtener datos de parcelas' });
+    }
+};
+
+module.exports = { resumen, usuarios, parcelasRaw };

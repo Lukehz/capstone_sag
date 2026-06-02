@@ -1,5 +1,7 @@
 const { sql, query } = require('../../config/db'); // Importa la funciónes pra consultas y sql para trabar con SQL Server
 const bcrypt = require('bcryptjs');
+const { camposFaltantes, esEnteroPositivo } = require('../../utils/validar');
+const { registrarAuditoria } = require('../../utils/auditoria');
 
 /************************   
 ***** USUARIO ******
@@ -40,10 +42,21 @@ const createUsuario = async (req, res) => {
     // Extraer datos del cuerpo de la solicitud
     const { correo, password, usuario, rut, dv_rut, nombre, apellido, rol } = req.body;
 
-    console.log(req.body);
+    // --- Validación de entrada (antes de hashear o tocar la BDD) ---
+    const faltan = camposFaltantes(
+        { password, usuario, rut, dv_rut, nombre, apellido, rol },
+        ['password', 'usuario', 'rut', 'dv_rut', 'nombre', 'apellido', 'rol']
+    );
+    if (faltan.length) {
+        return res.status(400).json({ error: 'Faltan campos obligatorios: ' + faltan.join(', ') + '.' });
+    }
+    if (!esEnteroPositivo(rut)) {
+        return res.status(400).json({ error: 'El RUT debe ser numérico, sin puntos ni dígito verificador.' });
+    }
+    if (!/^[0-9kK]$/.test(String(dv_rut))) {
+        return res.status(400).json({ error: 'El dígito verificador debe ser un número o la letra K.' });
+    }
 
-    const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
     // Primero, verificar si el RUT ya existe en la base de datos
     const checkRutQuery = `
         SELECT COUNT(*) AS count FROM USUARIO WHERE rut = @rut
@@ -56,9 +69,7 @@ const createUsuario = async (req, res) => {
 
         // Si el RUT ya existe, devolver un error
         if (checkResult[0].count > 0) {
-            const errorMessage = 'El RUT ya está registrado.';
-            console.log(errorMessage); // Log del mensaje de error
-            return res.status(400).json({ error: errorMessage });
+            return res.status(400).json({ error: 'El RUT ya está registrado.' });
         }
 
         // Validar que el rol exista en el maestro de roles
@@ -71,6 +82,7 @@ const createUsuario = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     const sqlQuery = `
         INSERT INTO USUARIO (correo, password, usuario, rut, dv_rut, nombre, apellido, rol) 
+        OUTPUT INSERTED.id_usuario
         VALUES (@correo, @password, @usuario, @rut, @dv_rut, @nombre, @apellido, @rol)
     `;
 
@@ -88,6 +100,8 @@ const createUsuario = async (req, res) => {
 
 
         // Responder con el resultado de la inserción y código 201 (creado)
+        const nuevoId = (result && result[0]) ? result[0].id_usuario : null;
+        await registrarAuditoria(req, { entidad: 'usuario', accion: 'crear', idEntidad: nuevoId, detalle: 'usuario ' + usuario + ' (rol ' + rol + ')' });
         res.status(201).json(result);
     } catch (error) {
         console.error('Error al crear ítem:', error.message);
@@ -153,7 +167,23 @@ const updateUsuario = async (req, res) => {
     const { id } = req.params; // Obtiene el ID del ítem desde la URL
     const { correo, password, usuario, rut, dv_rut, nombre, apellido, rol } = req.body;
     
-    console.log(req.body);
+    // --- Validación de entrada ---
+    if (!esEnteroPositivo(id)) {
+        return res.status(400).json({ error: 'ID inválido.' });
+    }
+    const faltan = camposFaltantes(
+        { usuario, rut, dv_rut, nombre, apellido, rol },
+        ['usuario', 'rut', 'dv_rut', 'nombre', 'apellido', 'rol']
+    );
+    if (faltan.length) {
+        return res.status(400).json({ error: 'Faltan campos obligatorios: ' + faltan.join(', ') + '.' });
+    }
+    if (!esEnteroPositivo(rut)) {
+        return res.status(400).json({ error: 'El RUT debe ser numérico, sin puntos ni dígito verificador.' });
+    }
+    if (!/^[0-9kK]$/.test(String(dv_rut))) {
+        return res.status(400).json({ error: 'El dígito verificador debe ser un número o la letra K.' });
+    }
 
     const sqlQuery = `
         UPDATE usuario 
@@ -189,6 +219,7 @@ const updateUsuario = async (req, res) => {
             { name: 'id', type: sql.Int, value: id }
         ]);
 
+        await registrarAuditoria(req, { entidad: 'usuario', accion: 'editar', idEntidad: id, detalle: 'usuario ' + usuario });
         res.sendStatus(204); // Responder con código 204 (sin contenido) si la actualización fue exitosa
     } catch (error) {
         console.error('Error al actualizar ítem:', error.message); // Log del error
@@ -199,6 +230,9 @@ const updateUsuario = async (req, res) => {
 // Eliminar un ítem
 const deleteUsuario = async (req, res) => {
     const { id } = req.params; // Obtiene el ID del ítem desde la URL
+    if (!esEnteroPositivo(id)) {
+        return res.status(400).json({ error: 'ID inválido.' });
+    }
     const sqlQuery = 'DELETE FROM usuario WHERE id_usuario = @id'; 
 
     try {
@@ -207,10 +241,18 @@ const deleteUsuario = async (req, res) => {
         if (rolActual === 'administrador' && (await contarAdministradores()) <= 1) {
             return res.status(409).json({ error: 'No se puede eliminar al último administrador.' });
         }
+        // Obtener el nombre de usuario antes de borrarlo (para el detalle de auditoría)
+        const datosUsuario = await query('SELECT usuario FROM usuario WHERE id_usuario = @id',
+            [{ name: 'id', type: sql.Int, value: id }]);
+        const nombreUsuario = (datosUsuario && datosUsuario[0]) ? datosUsuario[0].usuario : null;
         // Ejecutar la consulta de eliminación con el ID proporcionado
         await query(sqlQuery, [
             { name: 'id', type: sql.Int, value: id } // Parámetro para la consulta
         ]);
+        await registrarAuditoria(req, {
+            entidad: 'usuario', accion: 'eliminar', idEntidad: id,
+            detalle: nombreUsuario ? ('usuario ' + nombreUsuario) : null
+        });
         res.sendStatus(204); // Responder con código 204 (sin contenido) si la eliminación fue exitosa
     } catch (error) {
         res.status(500).json({ error: error.message });

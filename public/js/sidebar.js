@@ -280,8 +280,7 @@ function llenarDropdownConCuarentenasAgrupadas(cuarentenas) {
 function generarListadoCuarentenasPorComentario(cuarentenas) {
   const panel = document.getElementById('cuarentena-panel');
   if (!panel) {
-    console.error('No se encontró el panel de cuarentenas');
-    return;
+    return; // Este panel no está montado en esta vista: se omite sin error.
   }
   panel.innerHTML = '';
 
@@ -482,8 +481,7 @@ function llenarDropdownConCuarentenasInactivasAgrupadas(cuarentenas) {
 function generarListadoCuarentenasInactivasPorComentario(cuarentenas) {
   const panel = document.getElementById('cuarentena-inactiva-panel');
   if (!panel) {
-    console.error('No se encontró el panel de cuarentenas inactivas');
-    return;
+    return; // Este panel no está montado en esta vista: se omite sin error.
   }
   panel.innerHTML = '';
 

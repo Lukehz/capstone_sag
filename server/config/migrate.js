@@ -691,6 +691,63 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_acceso_log_fecha')
     CREATE INDEX IX_acceso_log_fecha ON acceso_log (fecha DESC);
 `});
 
+// ---- Auditoría de operaciones CRUD (quién crea/edita/elimina qué) --------
+batches.push({ label: 'tabla auditoria', sql: `
+IF OBJECT_ID('dbo.auditoria','U') IS NULL
+CREATE TABLE auditoria (
+    id_auditoria INT NOT NULL IDENTITY(1,1),
+    fecha        DATETIME2(0)  NOT NULL CONSTRAINT DF_auditoria_fecha DEFAULT SYSUTCDATETIME(),
+    id_usuario   INT           NULL,            -- quién realizó la acción (si hay sesión)
+    usuario      NVARCHAR(50)  NULL,            -- nombre de usuario (denormalizado, por si se borra)
+    rol          NVARCHAR(50)  NULL,
+    entidad      NVARCHAR(40)  NOT NULL,        -- 'parcelacion' | 'cuarentena' | 'usuario' | 'rol'
+    accion       NVARCHAR(20)  NOT NULL,        -- 'crear' | 'editar' | 'eliminar'
+    id_entidad   INT           NULL,            -- id del registro afectado
+    detalle      NVARCHAR(300) NULL,
+    CONSTRAINT auditoria_pk PRIMARY KEY (id_auditoria)
+);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_auditoria_fecha')
+    CREATE INDEX IX_auditoria_fecha ON auditoria (fecha DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_auditoria_entidad_fecha')
+    CREATE INDEX IX_auditoria_entidad_fecha ON auditoria (entidad, fecha DESC);
+`});
+
+// ---- Índices de rendimiento (aceleran los JOIN/filtros/orden más usados) --
+batches.push({ label: 'índices de rendimiento', sql: `
+-- Mapa: vértices de cada cuarentena (JOIN + ORDER en cada carga del mapa)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_vertice_cuarentena_orden')
+    CREATE INDEX IX_vertice_cuarentena_orden ON vertice (id_cuarentena, orden);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_conexion_cuarentena')
+    CREATE INDEX IX_conexion_cuarentena ON conexion (id_cuarentena);
+
+-- Cuarentenas: filtro activa/inactiva y JOIN con sector
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cuarentena_activa')
+    CREATE INDEX IX_cuarentena_activa ON cuarentena (activa);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cuarentena_sector')
+    CREATE INDEX IX_cuarentena_sector ON cuarentena (id_sector);
+
+-- Parcelaciones: JOINs con sector / cultivo / fase
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_parcelacion_sector')
+    CREATE INDEX IX_parcelacion_sector ON parcelacion (id_sector);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_parcelacion_cultivo')
+    CREATE INDEX IX_parcelacion_cultivo ON parcelacion (id_cultivo);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_parcelacion_fase')
+    CREATE INDEX IX_parcelacion_fase ON parcelacion (id_fase);
+
+-- Login: búsqueda por nombre de usuario en cada inicio de sesión
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_usuario_usuario')
+    CREATE INDEX IX_usuario_usuario ON usuario (usuario);
+
+-- Bitácora: KPIs por evento + rango de fechas
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_acceso_log_evento_fecha')
+    CREATE INDEX IX_acceso_log_evento_fecha ON acceso_log (evento, fecha DESC);
+
+-- Dashboard: actividad reciente del historial (ORDER BY fecha, hora)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_historial_fecha_hora')
+    CREATE INDEX IX_historial_fecha_hora ON historial (fecha DESC, hora DESC);
+`});
+
 // ---- Vistas para inspeccionar el modelo de permisos ----------------------
 batches.push({ label: 'vista VW_permisos_detalle', sql: `
 CREATE OR ALTER VIEW VW_permisos_detalle AS
