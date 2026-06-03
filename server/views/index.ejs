@@ -97,6 +97,7 @@
 
   <!-- Panel: Crear Cuarentena -->
   <div id="quarantine-panel" class="map-overlay panel panel--quarantine hidden" role="dialog" aria-labelledby="quarantine-panel-title">
+    <button type="button" class="sheet-grabber" aria-label="Contraer o expandir el panel"></button>
     <div class="panel__head">
       <span class="panel__title" id="quarantine-panel-title"><i class="fas fa-draw-polygon" aria-hidden="true"></i>Crear Cuarentena</span>
       <button type="button" id="trazado-tutorial-btn" class="tutorial-btn"><i class="fas fa-circle-question"></i> Tutorial</button>
@@ -195,6 +196,7 @@
 
   <!-- Modal: Crear Parcelación -->
   <div id="parcelacion-modal" class="map-overlay panel modal hidden" role="dialog" aria-modal="true" aria-labelledby="parcelacion-modal-title">
+    <button type="button" class="sheet-grabber" aria-label="Contraer o expandir el panel"></button>
     <div class="panel__head">
       <span class="panel__title" id="parcelacion-modal-title"><i class="fas fa-seedling" aria-hidden="true"></i>Crear Parcelación</span>
     </div>
@@ -255,3 +257,56 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script defer src="/js/dist/map-libs.bundle.js"></script>
 <script type="module" src="/js/dist/map.bundle.js"></script>
+
+<!-- Hoja inferior (móvil): contraer/expandir Crear Cuarentena y Crear Parcelación -->
+<script>
+(function () {
+  document.querySelectorAll('.sheet-grabber').forEach(function (g) {
+    var sheet = g.closest('.panel');
+    if (!sheet) return;
+    var startY = 0, dragging = false, moved = 0, h = 0;
+
+    function offsetColapsado() { return Math.max(0, sheet.offsetHeight - 52); }
+    function base() { return sheet.classList.contains('sheet-collapsed') ? h : 0; }
+
+    function onStart(y) { startY = y; dragging = true; moved = 0; h = offsetColapsado(); sheet.style.transition = 'none'; }
+    function onMove(y) {
+      if (!dragging) return;
+      moved = y - startY;
+      var ty = Math.min(h, Math.max(0, base() + moved));
+      sheet.style.transform = 'translateY(' + ty + 'px)';
+    }
+    function onEnd() {
+      if (!dragging) return;
+      dragging = false;
+      var b = base();
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      if (Math.abs(moved) < 8) {
+        sheet.classList.toggle('sheet-collapsed'); // toque = alternar
+      } else if (b + moved > h / 2) {
+        sheet.classList.add('sheet-collapsed');     // arrastró hacia abajo
+      } else {
+        sheet.classList.remove('sheet-collapsed');  // arrastró hacia arriba
+      }
+    }
+
+    var usingTouch = false;
+    g.addEventListener('touchstart', function (e) { usingTouch = true; onStart(e.touches[0].clientY); }, { passive: true });
+    g.addEventListener('touchmove', function (e) { onMove(e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+    g.addEventListener('touchend', function () { onEnd(); setTimeout(function () { usingTouch = false; }, 500); });
+    g.addEventListener('mousedown', function (e) { if (usingTouch) return; onStart(e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', function (e) { if (usingTouch) return; onMove(e.clientY); });
+    window.addEventListener('mouseup', function () { if (usingTouch) return; onEnd(); });
+  });
+
+  function expandir(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('sheet-collapsed');
+  }
+  var bq = document.getElementById('create-quarantine-button');
+  if (bq) bq.addEventListener('click', function () { expandir('quarantine-panel'); });
+  var bp = document.getElementById('create-parcela');
+  if (bp) bp.addEventListener('click', function () { expandir('parcelacion-modal'); });
+})();
+</script>

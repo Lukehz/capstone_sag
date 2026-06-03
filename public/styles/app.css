@@ -1083,9 +1083,10 @@ aside.app-sidebar {
 /* ===== Ajustes móviles puntuales (buscador, panel de cuarentena) ===== */
 @media (max-width: 768px) {
   /* Buscador del mapa: colapsado a lupa; se expande al tocarlo */
-  #map-search { flex: 0 0 42px; width: 42px; max-width: 42px; min-width: 0; transition: flex-basis .2s ease, width .2s ease, max-width .2s ease; }
-  #map-search:focus-within { flex-basis: 74vw; width: 74vw; max-width: 74vw; }
+  #map-search { flex: 0 0 42px; width: 42px; max-width: 42px; min-width: 0; overflow: hidden; transition: flex-basis .2s ease, width .2s ease, max-width .2s ease; }
+  #map-search:focus-within { flex-basis: 74vw; width: 74vw; max-width: 74vw; overflow: visible; }
   #map-search .mapboxgl-ctrl-geocoder--icon-search { pointer-events: none; }
+  #map-search .mapboxgl-ctrl-geocoder--input { padding: 8px 38px 8px 3px; }
 
   /* Panel de cuarentena: que no cubra toda la pantalla (deja ver el mapa para trazar) */
   .panel--quarantine { max-height: 58vh; overflow-y: auto; }
@@ -1116,11 +1117,11 @@ aside.app-sidebar {
      deja el mapa visible arriba para ver/tocar mientras se llena el formulario */
   .panel--quarantine,
   #parcelacion-modal.modal {
-    top: auto; bottom: 0; left: 0; right: 0; z-index: 24;
-    width: 100%; max-width: none;
-    max-height: 60vh; overflow-y: auto;
-    border-radius: 16px 16px 0 0; border-bottom: 0;
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, .30);
+    top: auto; bottom: 12px; left: 12px; right: 12px; z-index: 24;
+    width: auto; max-width: none;
+    max-height: calc(100vh - 84px); overflow-y: auto;
+    border-radius: 16px;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, .32);
   }
 }
 
@@ -1204,5 +1205,24 @@ summary:focus-visible {
   *, *::before, *::after {
     animation-duration: .001ms !important; animation-iteration-count: 1 !important;
     transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+}
+
+/* ===== Hoja inferior móvil: tirador para contraer/expandir ===== */
+.sheet-grabber { display: none; }
+@media (max-width: 768px) {
+  .panel--quarantine, #parcelacion-modal.modal { transition: transform .25s ease; }
+  .panel--quarantine.sheet-collapsed,
+  #parcelacion-modal.modal.sheet-collapsed { transform: translateY(calc(100% - 52px)); }
+  /* Al estar contraída: solo el tirador y el título centrado abajo */
+  .sheet-collapsed .panel__head { justify-content: center; margin-bottom: 0; }
+  .sheet-collapsed .panel__head > :not(.panel__title) { display: none; }
+  .sheet-grabber {
+    display: block; width: 100%; border: 0; background: transparent;
+    padding: 9px 0 5px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .sheet-grabber::before {
+    content: ''; display: block; width: 42px; height: 4px; margin: 0 auto;
+    border-radius: 999px; background: var(--border-2);
   }
 }

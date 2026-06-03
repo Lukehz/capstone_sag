@@ -547,28 +547,8 @@ map.on('click', 'quarantine-points', (e) => {
 }); 
 
 document.getElementById('quarantine-type').addEventListener('change', function(e) {
-  
-  // Solo bloquear el cambio si ya hay un dibujo en progreso (puntos o centro).
-  // Si aún no se dibujó nada, se permite cambiar de trazado a radio (y viceversa).
-  if (drawingMode && (quarantinePoints.length > 0 || quarantineCenter)) {
-    
-    // Restaurar el valor anterior del select
-    this.value = this.dataset.lastValue || '';
-    
-    // Mostrar alerta al usuario
-    window.notify('Por favor termine o cancele el dibujo actual antes de cambiar de opción.');
-    
-    // Asegurarnos que el modo de dibujo sigue activo (con su tipo real)
-    drawingMode = this.value || drawingMode;
-    
-    // Mantener visible el campo de radio si estaba en ese modo
-    if (this.value === 'radio') {
-      mostrarCampoRadio(true);
-    }
-    
-    return;
-  }
-
+  // Al cambiar de tipo se cancela automáticamente el dibujo anterior:
+  // startDrawing() limpia puntos, centro, capas temporales y quarantineCircle del modo previo.
   this.dataset.lastValue = this.value;
   
   const radiusInput = document.getElementById('quarantine-radius');
